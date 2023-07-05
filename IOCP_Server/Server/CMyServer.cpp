@@ -1,53 +1,9 @@
 #include "CMyServer.h"
 
-BOOL CtrlHandler(DWORD fdwCtrlType)
-{
-	if (fdwCtrlType == CTRL_C_EVENT)
-	{
-		puts("*** CTRL_C_EVENT ***");
-		HANDLE hFile = ::CreateFile(L"CTRLC.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		WSACleanup();
-		exit(0);
-		return TRUE;
-	}
-	else if (fdwCtrlType == CTRL_CLOSE_EVENT)
-	{
-		puts("*** CTRL_CLOSE_EVENT ***");
-		HANDLE hFile = ::CreateFile(L"CLOSE.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		WSACleanup();
-		return TRUE;
-	}
-	else if (fdwCtrlType == CTRL_LOGOFF_EVENT)
-	{
-		puts("*** CTRL_LOGOFF_EVENT ***");
-		HANDLE hFile = ::CreateFile(L"OFF.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		WSACleanup();
-		exit(0);
-		return TRUE;
-	}
-	else if (fdwCtrlType == CTRL_SHUTDOWN_EVENT)
-	{
-		puts("*** CTRL_SHUTDOWN_EVENT ***");
-		HANDLE hFile = ::CreateFile(L"Down.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		WSACleanup();
-		exit(0);
-		return TRUE;
-	}
-	else if (fdwCtrlType == CTRL_BREAK_EVENT)
-	{
-		puts("*** CTRL_BREAK_EVENT ***");
-		HANDLE hFile = ::CreateFile(L"BK.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		WSACleanup();
-		exit(0);
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
 CMyServer::CMyServer()
 {
 	m_iPort = 15000;
+	m_vecClient.reserve(100);
 	m_pDevice = make_shared<ID3D11Device*>(nullptr);
 	m_pDeviceContext = make_shared<ID3D11DeviceContext*>(nullptr);
 	m_pSwapChain = make_shared<IDXGISwapChain*>(nullptr);
@@ -157,9 +113,6 @@ void CMyServer::ThreadAccept(void* pData)
 
 HRESULT CMyServer::NativeConstruct()
 {
-	if (::SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE) == FALSE)
-		puts("ERROR: Ctrl+C 처리기를 등록할 수 없습니다.");
-
 	UINT iFlag = 0;
 
 #ifdef _DEBUG
