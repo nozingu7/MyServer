@@ -8,7 +8,7 @@ typedef struct UserInfo
 	char szIP[64];
 	int iPort;
 	char szName[20];
-	tm* time;
+	char szTime[32];
 } USERINFO;
 
 class CMyServer
@@ -53,7 +53,6 @@ private:
 	thread m_threadApt;
 	thread m_threadWorker[4];
 	CRITICAL_SECTION m_cs;
-	time_t timer;
 
 private:
 	shared_ptr<ID3D11Device*> m_pDevice;

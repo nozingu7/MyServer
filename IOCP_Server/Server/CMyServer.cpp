@@ -48,8 +48,6 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 CMyServer::CMyServer()
 {
 	m_iPort = 15000;
-	timer = time(NULL);
-
 	m_pDevice = make_shared<ID3D11Device*>(nullptr);
 	m_pDeviceContext = make_shared<ID3D11DeviceContext*>(nullptr);
 	m_pSwapChain = make_shared<IDXGISwapChain*>(nullptr);
@@ -130,7 +128,9 @@ void CMyServer::ThreadAccept(void* pData)
 		strcpy(userInfo->szIP, inet_ntoa(clientAddr.sin_addr));
 		userInfo->iPort = ntohs(clientAddr.sin_port);
 		strcpy(userInfo->szName, msg);
-		userInfo->time = localtime(&timer);
+		local_time<system_clock::duration> timer = current_zone()->to_local(system_clock::now());
+		string str = format("{:%Y-%m-%d %X}", timer);
+		strcpy(userInfo->szTime, str.c_str());
 
 		EnterCriticalSection(&m_cs);
 		m_vecClient.push_back(userInfo);
@@ -449,13 +449,7 @@ void CMyServer::MainWindow()
 			for (int i = 0; i < m_vecClient.size(); ++i)
 			{
 				ImGui::TableNextColumn();
-				ImGui::Text("%d-%02d-%02d %02d:%02d:%02d",
-					m_vecClient[i]->time->tm_year + 1900,
-					m_vecClient[i]->time->tm_mon + 1,
-					m_vecClient[i]->time->tm_mday,
-					m_vecClient[i]->time->tm_hour,
-					m_vecClient[i]->time->tm_min,
-					m_vecClient[i]->time->tm_sec);
+				ImGui::Text(m_vecClient[i]->szTime);
 				ImGui::TableNextColumn();
 				ImGui::Text(m_vecClient[i]->szIP);
 				ImGui::TableNextColumn();
@@ -485,12 +479,12 @@ void CMyServer::Render()
 		ImGui::BeginChild("##", ImVec2(500, 300));
 		ImGui::PushItemWidth(100);
 		ImGui::Text("IP : ");
-		ImGui::Text(u8"포트번호 : ");
+		ImGui::Text("Port : ");
 		ImGui::SameLine();
 		ImGui::DragInt("##", &m_iPort);
 		ImGui::PopItemWidth();
 
-		if (ImGui::Button(u8"서버 가동", ImVec2(150.f, 50.f)))
+		if (ImGui::Button("Server Open", ImVec2(150.f, 50.f)))
 		{
 			if (S_OK == CreateServer(m_iPort))
 			{
@@ -501,7 +495,7 @@ void CMyServer::Render()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(u8"서버 종료", ImVec2(150.f, 50.f)))
+		if (ImGui::Button("Server Close", ImVec2(150.f, 50.f)))
 		{
 			cout << "서버 종료 실행\n";
 		}

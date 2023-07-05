@@ -16,7 +16,7 @@
 #include <thread>
 #include <memory>
 #include <vector>
-#include <ctime>
+#include <chrono>
 
 #define _CRTDBG_MAP_ALLOC
 
@@ -31,3 +31,4 @@ extern HWND g_hWnd;
 
 using namespace DirectX;
 using namespace std;
+using namespace std::chrono;
