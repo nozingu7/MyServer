@@ -451,7 +451,7 @@ void CMyServer::MainWindow()
 				ImGui::TableNextColumn();
 				ImGui::Text("%d-%02d-%02d %02d:%02d:%02d",
 					m_vecClient[i]->time->tm_year + 1900,
-					m_vecClient[i]->time->tm_mon,
+					m_vecClient[i]->time->tm_mon + 1,
 					m_vecClient[i]->time->tm_mday,
 					m_vecClient[i]->time->tm_hour,
 					m_vecClient[i]->time->tm_min,
