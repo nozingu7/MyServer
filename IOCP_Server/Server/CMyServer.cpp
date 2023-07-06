@@ -240,9 +240,11 @@ HRESULT CMyServer::CreateServer(int iPort)
 		return E_FAIL;
 	}
 
-	// 累诀磊 静饭靛 积己
-	for (int i = 0; i < 4; i++)
-		m_threadWorker[i] = thread(&CMyServer::ThreadWork, this, nullptr);
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+
+	for (int i = 0; i < (int)si.dwNumberOfProcessors * 2; i++)
+		m_vecThreadWorker.push_back(thread(&CMyServer::ThreadWork, this, nullptr));
 
 	// listen 家南 积己
 	m_listenSock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -292,8 +294,8 @@ HRESULT CMyServer::ReleaseServer()
 	m_vecClient.clear();
 	vector<USERINFO*>().swap(m_vecClient);
 
-	for (int i = 0; i < 4; i++)
-		m_threadWorker[i].join();
+	for (int i = 0; i < m_vecThreadWorker.size(); ++i)
+		m_vecThreadWorker[i].join();
 	m_threadApt.join();
 	
 

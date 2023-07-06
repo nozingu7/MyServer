@@ -51,7 +51,7 @@ private:
 	vector<USERINFO*> m_vecClient;
 	HANDLE m_iocp;
 	thread m_threadApt;
-	thread m_threadWorker[4];
+	vector<thread> m_vecThreadWorker;
 	CRITICAL_SECTION m_cs;
 
 private:
