@@ -297,7 +297,9 @@ HRESULT CMyServer::ReleaseServer()
 	for (int i = 0; i < m_vecThreadWorker.size(); ++i)
 		m_vecThreadWorker[i].join();
 	m_threadApt.join();
-	
+
+	m_vecThreadWorker.clear();
+	vector<thread>().swap(m_vecThreadWorker);
 
 	CloseHandle(m_iocp);
 	shutdown(m_listenSock, SD_BOTH);
