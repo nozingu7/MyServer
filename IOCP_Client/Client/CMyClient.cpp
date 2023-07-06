@@ -4,19 +4,14 @@ CMyClient::CMyClient()
 {
 	m_sock = 0;
 	m_bConnectEnable = false;
-
-	m_pDevice = make_shared<ID3D11Device*>(nullptr);
-	m_pDeviceContext = make_shared<ID3D11DeviceContext*>(nullptr);
-	m_pSwapChain = make_shared<IDXGISwapChain*>(nullptr);
-	m_pBackBufferRTV = make_shared<ID3D11RenderTargetView*>(nullptr);
-	m_pDepthStencilView = make_shared<ID3D11DepthStencilView*>(nullptr);
 }
 
 CMyClient::~CMyClient()
 {
 	shutdown(m_sock, SD_BOTH);
 	closesocket(m_sock);
-	m_thread.join();
+	if(m_thread.joinable())
+		m_thread.join();
 
 	for (int i = 0; i < m_vecInfo.size(); ++i)
 		delete m_vecInfo[i];
@@ -29,11 +24,11 @@ CMyClient::~CMyClient()
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
-	m_pDevice.reset();
-	m_pDeviceContext.reset();
-	m_pSwapChain.reset();
-	m_pBackBufferRTV.reset();
-	m_pDepthStencilView.reset();
+	m_pSwapChain->Release();
+	m_pBackBufferRTV->Release();
+	m_pDepthStencilView->Release();
+	m_pDeviceContext->Release();
+	m_pDevice->Release();
 }
 
 HRESULT CMyClient::NativeConstruct()
@@ -45,7 +40,7 @@ HRESULT CMyClient::NativeConstruct()
 #endif
 	D3D_FEATURE_LEVEL			FreatureLV;
 
-	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, m_pDevice.get(), &FreatureLV, m_pDeviceContext.get())))
+	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, &m_pDevice, &FreatureLV, &m_pDeviceContext)))
 		return E_FAIL;
 
 	if (FAILED(SetSwapChain(g_hWnd, 1280, 720)))
@@ -57,21 +52,21 @@ HRESULT CMyClient::NativeConstruct()
 	if (FAILED(SetDepthStencil(1280, 720)))
 		return E_FAIL;
 
-	(*m_pDeviceContext.get())->OMSetRenderTargets(1, m_pBackBufferRTV.get(), *m_pDepthStencilView);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pBackBufferRTV, m_pDepthStencilView);
 
 	return S_OK;
 }
 
 HRESULT CMyClient::SetSwapChain(HWND hWnd, UINT WinX, UINT WinY)
 {
-	unique_ptr<IDXGIDevice*> pDevice = make_unique<IDXGIDevice*>(nullptr);
-	(*m_pDevice.get())->QueryInterface(__uuidof(IDXGIDevice), (void**)pDevice.get());
+	IDXGIDevice* pDevice = nullptr;
+	m_pDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDevice);
 
-	unique_ptr<IDXGIAdapter*> pAdapter = make_unique<IDXGIAdapter*>(nullptr);
-	(*pDevice.get())->GetParent(__uuidof(IDXGIAdapter), (void**)pAdapter.get());
+	IDXGIAdapter* pAdapter = nullptr;
+	pDevice->GetParent(__uuidof(IDXGIAdapter), (void**)&pAdapter);
 
-	unique_ptr<IDXGIFactory*> pFactory = make_unique<IDXGIFactory*>(nullptr);
-	(*pAdapter.get())->GetParent(__uuidof(IDXGIFactory), (void**)pFactory.get());
+	IDXGIFactory* pFactory = nullptr;
+	pAdapter->GetParent(__uuidof(IDXGIFactory), (void**)&pFactory);
 
 	DXGI_SWAP_CHAIN_DESC		SwapChain;
 	ZeroMemory(&SwapChain, sizeof(DXGI_SWAP_CHAIN_DESC));
@@ -92,8 +87,12 @@ HRESULT CMyClient::SetSwapChain(HWND hWnd, UINT WinX, UINT WinY)
 	SwapChain.Windowed = TRUE;
 	SwapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
-	if (FAILED((*pFactory.get())->CreateSwapChain(*m_pDevice.get(), &SwapChain, m_pSwapChain.get())))
+	if (FAILED(pFactory->CreateSwapChain(m_pDevice, &SwapChain, &m_pSwapChain)))
 		return E_FAIL;
+
+	pDevice->Release();
+	pAdapter->Release();
+	pFactory->Release();
 
 	return S_OK;
 }
@@ -105,11 +104,13 @@ HRESULT CMyClient::SetBackBufferRTV()
 
 	ID3D11Texture2D* pBackBufferTexture = nullptr;
 
-	if (FAILED((*m_pSwapChain.get())->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBufferTexture)))
+	if (FAILED(m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBufferTexture)))
 		return E_FAIL;
 
-	if (FAILED((*m_pDevice.get())->CreateRenderTargetView(pBackBufferTexture, nullptr, m_pBackBufferRTV.get())))
+	if (FAILED(m_pDevice->CreateRenderTargetView(pBackBufferTexture, nullptr, &m_pBackBufferRTV)))
 		return E_FAIL;
+
+	pBackBufferTexture->Release();
 
 	return S_OK;
 }
@@ -138,11 +139,13 @@ HRESULT CMyClient::SetDepthStencil(UINT WinX, UINT WinY)
 	TextureDesc.CPUAccessFlags = 0;
 	TextureDesc.MiscFlags = 0;
 
-	if (FAILED((*m_pDevice.get())->CreateTexture2D(&TextureDesc, nullptr, &pDepthStencilTexture)))
+	if (FAILED(m_pDevice->CreateTexture2D(&TextureDesc, nullptr, &pDepthStencilTexture)))
 		return E_FAIL;
 
-	if (FAILED((*m_pDevice.get())->CreateDepthStencilView(pDepthStencilTexture, nullptr, m_pDepthStencilView.get())))
+	if (FAILED(m_pDevice->CreateDepthStencilView(pDepthStencilTexture, nullptr, &m_pDepthStencilView)))
 		return E_FAIL;
+
+	pDepthStencilTexture->Release();
 
 	return S_OK;
 }
@@ -203,15 +206,15 @@ void CMyClient::Init_Imgui()
 
 	// Setup Platform/Renderer backends
 	ImGui_ImplWin32_Init(g_hWnd);
-	ImGui_ImplDX11_Init((*m_pDevice.get()), (*m_pDeviceContext.get()));
+	ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
 }
 
 void CMyClient::Render()
 {
 	XMFLOAT4 vColor(0.45f, 0.55f, 0.6f, 1.f);
-	(*m_pDeviceContext.get())->ClearRenderTargetView(*m_pBackBufferRTV, (float*)&vColor);
+	m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, (float*)&vColor);
 
-	(*m_pDeviceContext.get())->ClearDepthStencilView(*m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -246,9 +249,9 @@ void CMyClient::Render()
 		ImGui::RenderPlatformWindowsDefault();
 	}
 
-	(*m_pDeviceContext.get())->OMSetRenderTargets(1, m_pBackBufferRTV.get(), *m_pDepthStencilView);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pBackBufferRTV, m_pDepthStencilView);
 
-	(*m_pSwapChain.get())->Present(0, 0);
+	m_pSwapChain->Present(0, 0);
 }
 
 void CMyClient::ShowChat()

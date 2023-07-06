@@ -8,7 +8,8 @@ typedef struct UserInfo
 	char szIP[64];
 	int iPort;
 	char szName[20];
-	char szTime[32];
+	year_month_day date;
+	hh_mm_ss<milliseconds> time;
 } USERINFO;
 
 class CMyServer
@@ -32,6 +33,7 @@ public:
 public:
 	bool SendAll(USERINFO& userInfo);
 	void MainWindow();
+	bool isAlive();
 
 public:
 	void Render();
@@ -44,6 +46,8 @@ private:
 	int m_iPort = 0;
 	bool m_bRun = false;
 	bool m_bAlive = true;
+	bool m_bWorkerThread = false;
+	bool m_bAcceptThread = false;
 
 private:
 	WSADATA m_wsaData;
@@ -55,10 +59,10 @@ private:
 	CRITICAL_SECTION m_cs;
 
 private:
-	shared_ptr<ID3D11Device*> m_pDevice;
-	shared_ptr<ID3D11DeviceContext*> m_pDeviceContext;
-	shared_ptr<IDXGISwapChain*> m_pSwapChain;
-	shared_ptr<ID3D11RenderTargetView*> m_pBackBufferRTV;
-	shared_ptr<ID3D11DepthStencilView*> m_pDepthStencilView;
+	ID3D11Device* m_pDevice = nullptr;
+	ID3D11DeviceContext* m_pDeviceContext = nullptr;
+	IDXGISwapChain* m_pSwapChain = nullptr;
+	ID3D11RenderTargetView* m_pBackBufferRTV = nullptr;
+	ID3D11DepthStencilView* m_pDepthStencilView = nullptr;
 };
 

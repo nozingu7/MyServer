@@ -4,11 +4,6 @@ CMyServer::CMyServer()
 {
 	m_iPort = 15000;
 	m_vecClient.reserve(100);
-	m_pDevice = make_shared<ID3D11Device*>(nullptr);
-	m_pDeviceContext = make_shared<ID3D11DeviceContext*>(nullptr);
-	m_pSwapChain = make_shared<IDXGISwapChain*>(nullptr);
-	m_pBackBufferRTV = make_shared<ID3D11RenderTargetView*>(nullptr);
-	m_pDepthStencilView = make_shared<ID3D11DepthStencilView*>(nullptr);
 }
 
 CMyServer::~CMyServer()
@@ -24,7 +19,7 @@ void CMyServer::ThreadWork(void* pData)
 	OVERLAPPED* overlap = nullptr;
 	bool bResult = false;
 
-	while (true)
+	while (m_bWorkerThread)
 	{
 		bResult = GetQueuedCompletionStatus(m_iocp, &dwSize, (PULONG_PTR)&userInfo, &overlap, INFINITE);
 
@@ -71,8 +66,11 @@ void CMyServer::ThreadAccept(void* pData)
 	DWORD dwFlag = 0;
 	bool bResult = false;
 
-	while (INVALID_SOCKET != (clientSock = accept(m_listenSock, (SOCKADDR*)&clientAddr, &addrlen)))
+	while (m_bAcceptThread)
 	{
+		if (INVALID_SOCKET == (clientSock = accept(m_listenSock, (SOCKADDR*)&clientAddr, &addrlen)))
+			continue;
+
 		cout << "클라이언트 접속\n";
 
 		char msg[20] = { 0 };
@@ -84,9 +82,11 @@ void CMyServer::ThreadAccept(void* pData)
 		strcpy(userInfo->szIP, inet_ntoa(clientAddr.sin_addr));
 		userInfo->iPort = ntohs(clientAddr.sin_port);
 		strcpy(userInfo->szName, msg);
-		local_time<system_clock::duration> timer = current_zone()->to_local(system_clock::now());
-		string str = format("{:%Y-%m-%d %X}", timer);
-		strcpy(userInfo->szTime, str.c_str());
+
+		system_clock::time_point now = system_clock::now();
+		time_point<system_clock, days> dp = floor<days>(now);
+		userInfo->date = year_month_day(dp);
+		userInfo->time = hh_mm_ss<milliseconds>{ floor<milliseconds>(now - dp) };
 
 		EnterCriticalSection(&m_cs);
 		m_vecClient.push_back(userInfo);
@@ -107,8 +107,6 @@ void CMyServer::ThreadAccept(void* pData)
 		if (WSAGetLastError() != WSA_IO_PENDING)
 			cout << "PENDING 실패\n";
 	}
-
-	cout << "Accept 실패\n";
 }
 
 HRESULT CMyServer::NativeConstruct()
@@ -120,7 +118,7 @@ HRESULT CMyServer::NativeConstruct()
 #endif
 	D3D_FEATURE_LEVEL			FreatureLV;
 
-	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, m_pDevice.get(), &FreatureLV, m_pDeviceContext.get())))
+	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, &m_pDevice, &FreatureLV, &m_pDeviceContext)))
 		return E_FAIL;
 
 	if (FAILED(SetSwapChain(g_hWnd, 1280, 720)))
@@ -132,21 +130,21 @@ HRESULT CMyServer::NativeConstruct()
 	if (FAILED(SetDepthStencil(1280, 720)))
 		return E_FAIL;
 
-	(*m_pDeviceContext.get())->OMSetRenderTargets(1, m_pBackBufferRTV.get(), *m_pDepthStencilView);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pBackBufferRTV, m_pDepthStencilView);
 
 	return S_OK;
 }
 
 HRESULT CMyServer::SetSwapChain(HWND hWnd, UINT WinX, UINT WinY)
 {
-	unique_ptr<IDXGIDevice*> pDevice = make_unique<IDXGIDevice*>(nullptr);
-	(*m_pDevice.get())->QueryInterface(__uuidof(IDXGIDevice), (void**)pDevice.get());
+	IDXGIDevice* pDevice = nullptr;
+	m_pDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDevice);
 
-	unique_ptr<IDXGIAdapter*> pAdapter = make_unique<IDXGIAdapter*>(nullptr);
-	(*pDevice.get())->GetParent(__uuidof(IDXGIAdapter), (void**)pAdapter.get());
+	IDXGIAdapter* pAdapter = nullptr;
+	pDevice->GetParent(__uuidof(IDXGIAdapter), (void**)&pAdapter);
 
-	unique_ptr<IDXGIFactory*> pFactory = make_unique<IDXGIFactory*>(nullptr);
-	(*pAdapter.get())->GetParent(__uuidof(IDXGIFactory), (void**)pFactory.get());
+	IDXGIFactory* pFactory = nullptr;
+	pAdapter->GetParent(__uuidof(IDXGIFactory), (void**)&pFactory);
 
 	DXGI_SWAP_CHAIN_DESC		SwapChain;
 	ZeroMemory(&SwapChain, sizeof(DXGI_SWAP_CHAIN_DESC));
@@ -167,8 +165,12 @@ HRESULT CMyServer::SetSwapChain(HWND hWnd, UINT WinX, UINT WinY)
 	SwapChain.Windowed = TRUE;
 	SwapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
-	if (FAILED((*pFactory.get())->CreateSwapChain(*m_pDevice.get(), &SwapChain, m_pSwapChain.get())))
+	if (FAILED(pFactory->CreateSwapChain(m_pDevice, &SwapChain, &m_pSwapChain)))
 		return E_FAIL;
+
+	pDevice->Release();
+	pAdapter->Release();
+	pFactory->Release();
 
 	return S_OK;
 }
@@ -180,11 +182,13 @@ HRESULT CMyServer::SetBackBufferRTV()
 
 	ID3D11Texture2D* pBackBufferTexture = nullptr;
 
-	if (FAILED((*m_pSwapChain.get())->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBufferTexture)))
+	if (FAILED(m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBufferTexture)))
 		return E_FAIL;
 
-	if (FAILED((*m_pDevice.get())->CreateRenderTargetView(pBackBufferTexture, nullptr, m_pBackBufferRTV.get())))
+	if (FAILED(m_pDevice->CreateRenderTargetView(pBackBufferTexture, nullptr, &m_pBackBufferRTV)))
 		return E_FAIL;
+
+	pBackBufferTexture->Release();
 
 	return S_OK;
 }
@@ -213,11 +217,13 @@ HRESULT CMyServer::SetDepthStencil(UINT WinX, UINT WinY)
 	TextureDesc.CPUAccessFlags = 0;
 	TextureDesc.MiscFlags = 0;
 
-	if (FAILED((*m_pDevice.get())->CreateTexture2D(&TextureDesc, nullptr, &pDepthStencilTexture)))
+	if (FAILED(m_pDevice->CreateTexture2D(&TextureDesc, nullptr, &pDepthStencilTexture)))
 		return E_FAIL;
 
-	if (FAILED((*m_pDevice.get())->CreateDepthStencilView(pDepthStencilTexture, nullptr, m_pDepthStencilView.get())))
+	if (FAILED(m_pDevice->CreateDepthStencilView(pDepthStencilTexture, nullptr, &m_pDepthStencilView)))
 		return E_FAIL;
+
+	pDepthStencilTexture->Release();
 
 	return S_OK;
 }
@@ -242,6 +248,7 @@ HRESULT CMyServer::CreateServer(int iPort)
 
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
+	m_bWorkerThread = true;
 
 	for (int i = 0; i < (int)si.dwNumberOfProcessors * 2; i++)
 		m_vecThreadWorker.push_back(thread(&CMyServer::ThreadWork, this, nullptr));
@@ -275,6 +282,7 @@ HRESULT CMyServer::CreateServer(int iPort)
 	}
 
 	// 연결 요청 쓰레드 가동
+	m_bAcceptThread = true;
 	m_threadApt = thread(&CMyServer::ThreadAccept, this, nullptr);
 
 	return S_OK;
@@ -282,6 +290,7 @@ HRESULT CMyServer::CreateServer(int iPort)
 
 HRESULT CMyServer::ReleaseServer()
 {
+	// 클라이언트 접속 해제
 	for (int i = 0; i < m_vecClient.size(); ++i)
 	{
 		EnterCriticalSection(&m_cs);
@@ -290,32 +299,41 @@ HRESULT CMyServer::ReleaseServer()
 		LeaveCriticalSection(&m_cs);
 		delete m_vecClient[i];
 	}
-
 	m_vecClient.clear();
 	vector<USERINFO*>().swap(m_vecClient);
 
+	// WorkerThread 종료
+	m_bWorkerThread = false;
+	CloseHandle(m_iocp);
+
 	for (int i = 0; i < m_vecThreadWorker.size(); ++i)
 		m_vecThreadWorker[i].join();
-	m_threadApt.join();
-
 	m_vecThreadWorker.clear();
 	vector<thread>().swap(m_vecThreadWorker);
-
-	CloseHandle(m_iocp);
+	
+	// AcceptThread 종료
+	m_bAcceptThread = false;
 	shutdown(m_listenSock, SD_BOTH);
+
 	closesocket(m_listenSock);
+	if(m_threadApt.joinable())
+		m_threadApt.join();
+
+	// Critical_Section 해제
 	DeleteCriticalSection(&m_cs);
 	WSACleanup();
 
+	// ImGui 해제
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
-	m_pDevice.reset();
-	m_pDeviceContext.reset();
-	m_pSwapChain.reset();
-	m_pBackBufferRTV.reset();
-	m_pDepthStencilView.reset();
+	// D3D 해제
+	m_pSwapChain->Release();
+	m_pBackBufferRTV->Release();
+	m_pDepthStencilView->Release();
+	m_pDeviceContext->Release();
+	m_pDevice->Release();
 
 	return S_OK;
 }
@@ -364,16 +382,16 @@ void CMyServer::Init_Imgui()
 
 	// Setup Platform/Renderer backends
 	ImGui_ImplWin32_Init(g_hWnd);
-	ImGui_ImplDX11_Init((*m_pDevice.get()), (*m_pDeviceContext.get()));
+	ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
 }
 
 bool CMyServer::SendAll(USERINFO& userInfo)
 {
-	cout << "Message : " << userInfo.szBuf << '\n';
+	cout << "Message - " << userInfo.szBuf << '\n';
 
 	WSABUF wsaBuf = { 0 };
 	wsaBuf.buf = userInfo.szBuf;
-	wsaBuf.len = strlen(userInfo.szBuf);
+	wsaBuf.len = (ULONG)strlen(userInfo.szBuf);
 	DWORD dwByte = 0;
 	DWORD dwFlag = 0;
 
@@ -406,7 +424,13 @@ void CMyServer::MainWindow()
 			for (int i = 0; i < m_vecClient.size(); ++i)
 			{
 				ImGui::TableNextColumn();
-				ImGui::Text(m_vecClient[i]->szTime);
+				ImGui::Text(format("{:%Y-%m-%d}", m_vecClient[i]->date).c_str());
+				ImGui::SameLine();
+				ImGui::Text("%02d:%02d:%02d", 
+					m_vecClient[i]->time.hours().count() + 9,
+					m_vecClient[i]->time.minutes().count(),
+					m_vecClient[i]->time.seconds().count());
+				//ImGui::Text(m_vecClient[i]->szTime);
 				ImGui::TableNextColumn();
 				ImGui::Text(m_vecClient[i]->szIP);
 				ImGui::TableNextColumn();
@@ -420,12 +444,17 @@ void CMyServer::MainWindow()
 	ImGui::End();
 }
 
+bool CMyServer::isAlive()
+{
+	return m_bAlive;
+}
+
 void CMyServer::Render()
 {
 	XMFLOAT4 vColor(0.45f, 0.55f, 0.6f, 1.f);
-	(*m_pDeviceContext.get())->ClearRenderTargetView(*m_pBackBufferRTV, (float*)&vColor);
+	m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, (float*)&vColor);
 
-	(*m_pDeviceContext.get())->ClearDepthStencilView(*m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -455,6 +484,9 @@ void CMyServer::Render()
 		if (ImGui::Button("Server Close", ImVec2(150.f, 50.f)))
 		{
 			cout << "서버 종료 실행\n";
+			m_bRun = false;
+			m_bAlive = false;
+			//ReleaseServer();
 		}
 
 		if (m_bRun)
@@ -478,8 +510,8 @@ void CMyServer::Render()
 		ImGui::RenderPlatformWindowsDefault();
 	}
 
-	(*m_pDeviceContext.get())->OMSetRenderTargets(1, m_pBackBufferRTV.get(), *m_pDepthStencilView);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pBackBufferRTV, m_pDepthStencilView);
 
-	(*m_pSwapChain.get())->Present(0, 0);
+	m_pSwapChain->Present(0, 0);
 }
 

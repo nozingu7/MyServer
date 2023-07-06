@@ -51,10 +51,10 @@ private:
 	bool m_bAlive = true;
 
 private:
-	shared_ptr<ID3D11Device*> m_pDevice;
-	shared_ptr<ID3D11DeviceContext*> m_pDeviceContext;
-	shared_ptr<IDXGISwapChain*> m_pSwapChain;
-	shared_ptr<ID3D11RenderTargetView*> m_pBackBufferRTV;
-	shared_ptr<ID3D11DepthStencilView*> m_pDepthStencilView;
+	ID3D11Device* m_pDevice;
+	ID3D11DeviceContext* m_pDeviceContext;
+	IDXGISwapChain* m_pSwapChain;
+	ID3D11RenderTargetView* m_pBackBufferRTV;
+	ID3D11DepthStencilView* m_pDepthStencilView;
 };
 
