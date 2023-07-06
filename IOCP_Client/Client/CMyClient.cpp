@@ -8,27 +8,7 @@ CMyClient::CMyClient()
 
 CMyClient::~CMyClient()
 {
-	shutdown(m_sock, SD_BOTH);
-	closesocket(m_sock);
-	if(m_thread.joinable())
-		m_thread.join();
-
-	for (int i = 0; i < m_vecInfo.size(); ++i)
-		delete m_vecInfo[i];
-	m_vecInfo.clear();
-	vector<USERINFO*>().swap(m_vecInfo);
-
-	WSACleanup();
-
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-
-	m_pSwapChain->Release();
-	m_pBackBufferRTV->Release();
-	m_pDepthStencilView->Release();
-	m_pDeviceContext->Release();
-	m_pDevice->Release();
+	Release();
 }
 
 HRESULT CMyClient::NativeConstruct()
@@ -229,7 +209,8 @@ void CMyClient::Render()
 		if (ImGui::Button(u8"서버 종료", ImVec2(150.f, 50.f)))
 		{
 			cout << "서버 종료 실행\n";
-			Release();
+			m_bAlive = false;
+			m_bConnectEnable = false;
 		}
 	}
 	ImGui::End();
@@ -265,6 +246,7 @@ void CMyClient::ShowChat()
 			ImGui::Text("%s", m_vecInfo[i]->szBuf);
 
 		ImGui::EndChild();
+
 		ImGui::InputText("##", m_szInputBuf, IM_ARRAYSIZE(m_szInputBuf));
 		if (GetKeyState(VK_RETURN) & 0x8000)
 		{
@@ -299,7 +281,27 @@ void CMyClient::ShowChat()
 
 void CMyClient::Release()
 {
-	m_bAlive = false;
+	shutdown(m_sock, SD_BOTH);
+	closesocket(m_sock);
+	if (m_thread.joinable())
+		m_thread.join();
+
+	for (int i = 0; i < m_vecInfo.size(); ++i)
+		delete m_vecInfo[i];
+	m_vecInfo.clear();
+	vector<USERINFO*>().swap(m_vecInfo);
+
+	WSACleanup();
+
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
+	m_pSwapChain->Release();
+	m_pBackBufferRTV->Release();
+	m_pDepthStencilView->Release();
+	m_pDeviceContext->Release();
+	m_pDevice->Release();
 }
 
 void CMyClient::ThreadRecv(void* pData)

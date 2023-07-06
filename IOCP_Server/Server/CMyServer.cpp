@@ -430,7 +430,6 @@ void CMyServer::MainWindow()
 					m_vecClient[i]->time.hours().count() + 9,
 					m_vecClient[i]->time.minutes().count(),
 					m_vecClient[i]->time.seconds().count());
-				//ImGui::Text(m_vecClient[i]->szTime);
 				ImGui::TableNextColumn();
 				ImGui::Text(m_vecClient[i]->szIP);
 				ImGui::TableNextColumn();
@@ -486,7 +485,6 @@ void CMyServer::Render()
 			cout << "서버 종료 실행\n";
 			m_bRun = false;
 			m_bAlive = false;
-			//ReleaseServer();
 		}
 
 		if (m_bRun)
