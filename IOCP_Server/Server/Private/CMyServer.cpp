@@ -387,11 +387,16 @@ void CMyServer::Init_Imgui()
 
 bool CMyServer::SendAll(USERINFO& userInfo)
 {
-	cout << "Message - " << userInfo.szBuf << '\n';
+	char* pBuf = userInfo.szBuf;
+	PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+	char szName[20] = { 0 };
+	memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
+	pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
+	cout << "Message - " << szName << " : " << pBuf << '\n';
 
 	WSABUF wsaBuf = { 0 };
 	wsaBuf.buf = userInfo.szBuf;
-	wsaBuf.len = (ULONG)strlen(userInfo.szBuf);
+	wsaBuf.len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
 	DWORD dwByte = 0;
 	DWORD dwFlag = 0;
 

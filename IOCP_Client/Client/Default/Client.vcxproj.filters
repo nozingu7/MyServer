@@ -58,6 +58,9 @@
     <ClInclude Include="targetver.h">
       <Filter>소스 파일\Default</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Define.h">
+      <Filter>소스 파일\Client</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CMyClient.cpp">

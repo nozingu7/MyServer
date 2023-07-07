@@ -243,7 +243,7 @@ void CMyClient::ShowChat()
 
 		int iSize = (int)m_vecInfo.size();
 		for (int i = 0; i < iSize; i++)
-			ImGui::Text("%s", m_vecInfo[i]->szBuf);
+			ImGui::Text("%s : %s", m_vecInfo[i]->szName, m_vecInfo[i]->szBuf);
 
 		ImGui::EndChild();
 
@@ -252,11 +252,21 @@ void CMyClient::ShowChat()
 		{
 			if (strcmp("", m_szInputBuf))
 			{
-				strcpy(m_szBuf, m_Info.szName);
-				strcat(m_szBuf, " : ");
-				strcat(m_szBuf, m_szInputBuf);
-				int len = (int)strlen(m_szBuf);
-				send(m_sock, m_szBuf, len + 1, 0);
+				BYTE* pBuf = new BYTE[sizeof(PACKET)];
+				memset(pBuf, 0, sizeof(PACKET));
+
+				PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+				pHeader->iNameLen = (int)strlen(m_szName) + 1;
+				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
+
+				char* pMsg = (char*)(pBuf + sizeof(PACKETHEADER));
+				memcpy(pMsg, m_szName, pHeader->iNameLen);
+				pMsg += pHeader->iNameLen;
+				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
+
+				int len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
+				send(m_sock, (char*)pBuf, len, 0);
+				delete[] pBuf;
 				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
 			}
 		}
@@ -267,11 +277,21 @@ void CMyClient::ShowChat()
 		{
 			if (strcmp("", m_szInputBuf))
 			{
-				strcpy(m_szBuf, m_Info.szName);
-				strcat(m_szBuf, " : ");
-				strcat(m_szBuf, m_szInputBuf);
-				int len = (int)strlen(m_szBuf);
-				send(m_sock, m_szBuf, len + 1, 0);
+				BYTE* pBuf = new BYTE[sizeof(PACKET)];
+				memset(pBuf, 0, sizeof(PACKET));
+
+				PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+				pHeader->iNameLen = (int)strlen(m_szName) + 1;
+				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
+
+				char* pMsg = (char*)(pBuf + sizeof(PACKETHEADER));
+				memcpy(pMsg, m_szName, pHeader->iNameLen);
+				pMsg += pHeader->iNameLen;
+				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
+
+				int len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
+				send(m_sock, (char*)pBuf, len, 0);
+				delete[] pBuf;
 				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
 			}
 		}
@@ -311,10 +331,22 @@ void CMyClient::ThreadRecv(void* pData)
 
 	while (0 < recv(m_sock, msg, len, 0))
 	{
-		USERINFO* pInfo = new USERINFO;
-		strcpy(pInfo->szBuf, msg);
+		PACKETHEADER* pHeader = (PACKETHEADER*)msg;
+		int iNameLen = pHeader->iNameLen;
+		int iMsgLen = pHeader->iMsgLen;
+		char* pBuf = msg + sizeof(PACKETHEADER);
+
+		UserInfo* pInfo = new USERINFO;
+		memcpy(pInfo->szName, pBuf, iNameLen);
+		memcpy(pInfo->szBuf, pBuf + iNameLen, iMsgLen);
 		m_vecInfo.push_back(pInfo);
 		memset(msg, 0, len);
+
+
+		/*USERINFO* pInfo = new USERINFO;
+		strcpy(pInfo->szBuf, msg);
+		m_vecInfo.push_back(pInfo);
+		memset(msg, 0, len);*/
 	}
 }
 
@@ -369,12 +401,12 @@ void CMyClient::Menu()
 	if (ImGui::BeginPopupModal("NickName", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		TextCenter(u8"닉네임을 설정해주세요!");
-		ImGui::InputText("##", m_Info.szName, IM_ARRAYSIZE(m_Info.szName));
+		ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName));
 		WindowCenter(u8"확인##1");
 		if (ImGui::Button(u8"확인##1", ImVec2(50.f, 25.f)))
 		{
 			// Connect 함수 호출
-			if (S_OK == ConnectServer(m_Info.szName))
+			if (S_OK == ConnectServer(m_szName))
 			{
 				ImGui::CloseCurrentPopup();
 			}

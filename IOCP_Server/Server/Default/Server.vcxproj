@@ -159,6 +159,7 @@
     <ClInclude Include="..\..\ImGui\imstb_truetype.h" />
     <ClInclude Include="..\Public\CMyServer.h" />
     <ClInclude Include="..\Public\common.h" />
+    <ClInclude Include="..\Public\Define.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Server.h" />

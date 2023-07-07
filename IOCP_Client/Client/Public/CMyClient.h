@@ -1,18 +1,6 @@
 #pragma once
 #include "common.h"
-
-typedef struct UserInfo
-{
-	char szName[20];
-	char szBuf[1024];
-} USERINFO;
-
-typedef struct Packet
-{
-	SOCKET sock;
-	char szName[20];
-	char szBuf[128];
-} PACKET;
+#include "Define.h"
 
 class CMyClient
 {
@@ -43,6 +31,7 @@ private:
 	SOCKET m_sock;
 	thread m_thread;
 	bool m_bConnectEnable;
+	char m_szName[20];
 	char m_szBuf[1024];
 	char m_szInputBuf[256];
 	vector<USERINFO*> m_vecInfo;

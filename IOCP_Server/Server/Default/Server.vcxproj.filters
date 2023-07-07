@@ -58,6 +58,9 @@
     <ClInclude Include="..\..\ImGui\imstb_truetype.h">
       <Filter>소스 파일\Default\ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Define.h">
+      <Filter>소스 파일\Server</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Server.cpp">
