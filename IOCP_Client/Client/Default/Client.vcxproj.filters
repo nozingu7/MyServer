@@ -22,18 +22,6 @@
     <ClInclude Include="..\Public\common.h">
       <Filter>소스 파일\Client</Filter>
     </ClInclude>
-    <ClInclude Include="Client.h">
-      <Filter>소스 파일\Default</Filter>
-    </ClInclude>
-    <ClInclude Include="framework.h">
-      <Filter>소스 파일\Default</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource.h">
-      <Filter>소스 파일\Default</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>소스 파일\Default</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\ImGui\imconfig.h">
       <Filter>소스 파일\Default\ImGui</Filter>
     </ClInclude>
@@ -58,13 +46,22 @@
     <ClInclude Include="..\..\ImGui\imstb_truetype.h">
       <Filter>소스 파일\Default\ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="Client.h">
+      <Filter>소스 파일\Default</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>소스 파일\Default</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>소스 파일\Default</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>소스 파일\Default</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CMyClient.cpp">
       <Filter>소스 파일\Client</Filter>
-    </ClCompile>
-    <ClCompile Include="Client.cpp">
-      <Filter>소스 파일\Default</Filter>
     </ClCompile>
     <ClCompile Include="..\..\ImGui\imgui.cpp">
       <Filter>소스 파일\Default\ImGui</Filter>
@@ -86,6 +83,9 @@
     </ClCompile>
     <ClCompile Include="..\..\ImGui\imgui_widgets.cpp">
       <Filter>소스 파일\Default\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Client.cpp">
+      <Filter>소스 파일\Default</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
