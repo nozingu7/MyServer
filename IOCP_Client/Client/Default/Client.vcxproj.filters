@@ -14,14 +14,17 @@
     <Filter Include="소스 파일\Client">
       <UniqueIdentifier>{a351420e-81d7-4bea-86f5-7cec7e75599f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Client\MainApp">
+      <UniqueIdentifier>{57616880-4b27-4b60-b487-edd16cc96dfb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Client\Define">
+      <UniqueIdentifier>{179343e1-750c-4dc9-95fb-13e209eab7c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Client\MyClient">
+      <UniqueIdentifier>{5b652c05-9291-48dc-bc14-c076cbe79152}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Public\CMyClient.h">
-      <Filter>소스 파일\Client</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\common.h">
-      <Filter>소스 파일\Client</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\ImGui\imconfig.h">
       <Filter>소스 파일\Default\ImGui</Filter>
     </ClInclude>
@@ -58,14 +61,20 @@
     <ClInclude Include="targetver.h">
       <Filter>소스 파일\Default</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CMainApp.h">
+      <Filter>소스 파일\Client\MainApp</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Define.h">
-      <Filter>소스 파일\Client</Filter>
+      <Filter>소스 파일\Client\Define</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\common.h">
+      <Filter>소스 파일\Client\Define</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CMyClient.h">
+      <Filter>소스 파일\Client\MyClient</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Private\CMyClient.cpp">
-      <Filter>소스 파일\Client</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\ImGui\imgui.cpp">
       <Filter>소스 파일\Default\ImGui</Filter>
     </ClCompile>
@@ -89,6 +98,12 @@
     </ClCompile>
     <ClCompile Include="Client.cpp">
       <Filter>소스 파일\Default</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CMainApp.cpp">
+      <Filter>소스 파일\Client\MainApp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CMyClient.cpp">
+      <Filter>소스 파일\Client\MyClient</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -3,7 +3,7 @@
 
 #include "framework.h"
 #include "Server.h"
-#include "CMyServer.h"
+#include "CMainApp.h"
 
 #pragma comment(linker, "/entry:wWinMainCRTStartup /subsystem:console")
 
@@ -48,13 +48,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     MSG msg;
 
-    CMyServer myServer;
-    if (FAILED(myServer.NativeConstruct()))
-    {
+    CMainApp mainApp;
+    if (FAILED(mainApp.NativeConstruct()))
         return 0;
-    }
-
-    myServer.Init_Imgui();
 
     LARGE_INTEGER CurrentTime;
     LARGE_INTEGER OldTime;
@@ -68,7 +64,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     QueryPerformanceFrequency(&CpuTick);
 
     // 기본 메시지 루프입니다:
-    while (myServer.isAlive())
+    while (mainApp.isAlive())
     {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
@@ -98,7 +94,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         if (1.f / 60.f <= fTimeDelta)
         {
             fTimeDelta = 0.f;
-            myServer.Render();
+            mainApp.Render();
         }
     }
 

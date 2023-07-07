@@ -5,14 +5,8 @@
 class CMyServer
 {
 public:
-	CMyServer();
+	CMyServer(ID3D11Device* pDevice, ID3D11DeviceContext* pContext);
 	~CMyServer();
-
-public:
-	HRESULT NativeConstruct();
-	HRESULT SetSwapChain(HWND hWnd, UINT WinX, UINT WinY);
-	HRESULT SetBackBufferRTV();
-	HRESULT SetDepthStencil(UINT WinX, UINT WinY);
 
 public:
 	HRESULT CreateServer(int iPort);
@@ -26,6 +20,7 @@ public:
 	bool isAlive();
 	void GetIP();
 	char* UTF8ToMultiByte(char* msg);
+	char* MultiByteToUTF8(char* msg);
 
 public:
 	void Render();
@@ -54,8 +49,5 @@ private:
 private:
 	ID3D11Device* m_pDevice = nullptr;
 	ID3D11DeviceContext* m_pDeviceContext = nullptr;
-	IDXGISwapChain* m_pSwapChain = nullptr;
-	ID3D11RenderTargetView* m_pBackBufferRTV = nullptr;
-	ID3D11DepthStencilView* m_pDepthStencilView = nullptr;
 };
 

@@ -6,7 +6,7 @@ typedef struct UserInfo
 	char szBuf[1024];
 	char szIP[64];
 	int iPort;
-	char szName[20];
+	char szName[30];
 	year_month_day date;
 	hh_mm_ss<milliseconds> time;
 } USERINFO;

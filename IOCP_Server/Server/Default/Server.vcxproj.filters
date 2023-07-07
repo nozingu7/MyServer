@@ -14,6 +14,15 @@
     <Filter Include="소스 파일\Default\ImGui">
       <UniqueIdentifier>{bb37eccf-c4e5-4baf-8db5-0704b347d684}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Server\MainApp">
+      <UniqueIdentifier>{b57e9c60-a838-416f-af20-4aca428047dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Server\Define">
+      <UniqueIdentifier>{8e35e265-13ff-41cf-9351-fb7a1a37e159}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Server\MyServer">
+      <UniqueIdentifier>{e5cbd40b-5165-4ae8-922a-53be7aaa3088}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -27,12 +36,6 @@
     </ClInclude>
     <ClInclude Include="Server.h">
       <Filter>소스 파일\Default</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CMyServer.h">
-      <Filter>소스 파일\Server</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\common.h">
-      <Filter>소스 파일\Server</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ImGui\imconfig.h">
       <Filter>소스 파일\Default\ImGui</Filter>
@@ -58,16 +61,22 @@
     <ClInclude Include="..\..\ImGui\imstb_truetype.h">
       <Filter>소스 파일\Default\ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CMainApp.h">
+      <Filter>소스 파일\Server\MainApp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\common.h">
+      <Filter>소스 파일\Server\Define</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Define.h">
-      <Filter>소스 파일\Server</Filter>
+      <Filter>소스 파일\Server\Define</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CMyServer.h">
+      <Filter>소스 파일\Server\MyServer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Server.cpp">
       <Filter>소스 파일\Default</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CMyServer.cpp">
-      <Filter>소스 파일\Server</Filter>
     </ClCompile>
     <ClCompile Include="..\..\ImGui\imgui.cpp">
       <Filter>소스 파일\Default\ImGui</Filter>
@@ -89,6 +98,12 @@
     </ClCompile>
     <ClCompile Include="..\..\ImGui\imgui_widgets.cpp">
       <Filter>소스 파일\Default\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CMainApp.cpp">
+      <Filter>소스 파일\Server\MainApp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CMyServer.cpp">
+      <Filter>소스 파일\Server\MyServer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

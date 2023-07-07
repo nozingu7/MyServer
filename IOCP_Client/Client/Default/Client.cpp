@@ -3,7 +3,7 @@
 
 #include "framework.h"
 #include "Client.h"
-#include "CMyClient.h"
+#include "CMainApp.h"
 
 #define MAX_LOADSTRING 100
 
@@ -44,9 +44,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_CLIENT));
 
-	CMyClient client;
-	client.NativeConstruct();
-	client.Init_Imgui();
+	CMainApp mainApp;
+	mainApp.NativeConstruct();
 
 	MSG msg;
 
@@ -62,7 +61,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	QueryPerformanceFrequency(&CpuTick);
 
 	// 기본 메시지 루프입니다:
-	while (client.Alive())
+	while (mainApp.isAlive())
 	{
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
@@ -92,7 +91,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		if (1.f / 60.f <= fTimeDelta)
 		{
 			fTimeDelta = 0.f;
-			client.Render();
+			mainApp.Render();
 		}
 	}
 
@@ -141,7 +140,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
 	g_hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
 
-	RECT		rcWindow = { 0, 0, 1280, 720 };
+	RECT		rcWindow = { 0, 0, 800, 600 };
 	AdjustWindowRect(&rcWindow, WS_OVERLAPPEDWINDOW, TRUE);
 
 	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,

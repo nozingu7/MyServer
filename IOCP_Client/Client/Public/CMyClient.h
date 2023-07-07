@@ -5,14 +5,10 @@
 class CMyClient
 {
 public:
-	CMyClient();
+	CMyClient(ID3D11Device* pDevice, ID3D11DeviceContext* pContext);
 	~CMyClient();
 
-public:
-	HRESULT NativeConstruct();
-	HRESULT SetSwapChain(HWND hWnd, UINT WinX, UINT WinY);
-	HRESULT SetBackBufferRTV();
-	HRESULT SetDepthStencil(UINT WinX, UINT WinY);
+private:
 	HRESULT ConnectServer(const char* szName);
 
 public:
@@ -31,7 +27,7 @@ private:
 	SOCKET m_sock;
 	thread m_thread;
 	bool m_bConnectEnable;
-	char m_szName[20];
+	char m_szName[30];
 	char m_szInputBuf[256];
 	vector<USERINFO*> m_vecInfo;
 	bool m_bConnectFail = false;
@@ -40,8 +36,5 @@ private:
 private:
 	ID3D11Device* m_pDevice;
 	ID3D11DeviceContext* m_pDeviceContext;
-	IDXGISwapChain* m_pSwapChain;
-	ID3D11RenderTargetView* m_pBackBufferRTV;
-	ID3D11DepthStencilView* m_pDepthStencilView;
 };
 
