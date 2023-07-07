@@ -3,7 +3,7 @@
 typedef struct UserInfo
 {
 	SOCKET sock;
-	char szBuf[1024]; // 필요없음
+	char szBuf[1024];
 	char szIP[64];
 	int iPort;
 	char szName[20];
