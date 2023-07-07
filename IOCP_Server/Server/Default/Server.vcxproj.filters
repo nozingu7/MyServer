@@ -5,102 +5,100 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="헤더 파일">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="리소스 파일">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="소스 파일\ImGui">
       <UniqueIdentifier>{bb37eccf-c4e5-4baf-8db5-0704b347d684}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Default">
+      <UniqueIdentifier>{996b8237-7f1f-450e-bab6-a150dbf03c0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Server">
+      <UniqueIdentifier>{28f39d54-e08a-4a2a-9447-d632bbf122ab}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="framework.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="targetver.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>소스 파일\Default</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>소스 파일\Default</Filter>
     </ClInclude>
     <ClInclude Include="Resource.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>소스 파일\Default</Filter>
     </ClInclude>
     <ClInclude Include="Server.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>소스 파일\Default</Filter>
     </ClInclude>
-    <ClInclude Include="CMyServer.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="..\Public\CMyServer.h">
+      <Filter>소스 파일\Server</Filter>
     </ClInclude>
-    <ClInclude Include="common.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="..\Public\common.h">
+      <Filter>소스 파일\Server</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imconfig.h">
+    <ClInclude Include="..\..\ImGui\imconfig.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imgui.h">
+    <ClInclude Include="..\..\ImGui\imgui.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imgui_impl_dx11.h">
+    <ClInclude Include="..\..\ImGui\imgui_impl_dx11.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imgui_impl_win32.h">
+    <ClInclude Include="..\..\ImGui\imgui_impl_win32.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imgui_internal.h">
+    <ClInclude Include="..\..\ImGui\imgui_internal.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imstb_rectpack.h">
+    <ClInclude Include="..\..\ImGui\imstb_rectpack.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imstb_textedit.h">
+    <ClInclude Include="..\..\ImGui\imstb_textedit.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="..\ImGui\imstb_truetype.h">
+    <ClInclude Include="..\..\ImGui\imstb_truetype.h">
       <Filter>소스 파일\ImGui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Server.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>소스 파일\Default</Filter>
     </ClCompile>
-    <ClCompile Include="CMyServer.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="..\Private\CMyServer.cpp">
+      <Filter>소스 파일\Server</Filter>
     </ClCompile>
-    <ClCompile Include="..\ImGui\imgui.cpp">
+    <ClCompile Include="..\..\ImGui\imgui.cpp">
       <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\ImGui\imgui_demo.cpp">
+    <ClCompile Include="..\..\ImGui\imgui_demo.cpp">
       <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\ImGui\imgui_draw.cpp">
+    <ClCompile Include="..\..\ImGui\imgui_draw.cpp">
       <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\ImGui\imgui_impl_dx11.cpp">
+    <ClCompile Include="..\..\ImGui\imgui_impl_dx11.cpp">
       <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\ImGui\imgui_impl_win32.cpp">
+    <ClCompile Include="..\..\ImGui\imgui_impl_win32.cpp">
       <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\ImGui\imgui_tables.cpp">
+    <ClCompile Include="..\..\ImGui\imgui_tables.cpp">
       <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="..\ImGui\imgui_widgets.cpp">
+    <ClCompile Include="..\..\ImGui\imgui_widgets.cpp">
       <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Server.rc">
-      <Filter>리소스 파일</Filter>
-    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
-      <Filter>리소스 파일</Filter>
+      <Filter>소스 파일\Default</Filter>
     </Image>
     <Image Include="Server.ico">
-      <Filter>리소스 파일</Filter>
+      <Filter>소스 파일\Default</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Server.rc">
+      <Filter>소스 파일\Default</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
