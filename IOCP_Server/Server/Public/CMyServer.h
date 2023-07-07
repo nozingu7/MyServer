@@ -24,6 +24,7 @@ public:
 	bool SendAll(USERINFO& userInfo);
 	void MainWindow();
 	bool isAlive();
+	void GetIP();
 
 public:
 	void Render();
@@ -33,6 +34,7 @@ public:
 	void ThreadWork(void* pData);
 
 private:
+	char m_szIP[20];
 	int m_iPort = 0;
 	bool m_bRun = false;
 	bool m_bAlive = true;

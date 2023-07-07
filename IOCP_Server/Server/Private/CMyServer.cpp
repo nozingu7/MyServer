@@ -2,6 +2,8 @@
 
 CMyServer::CMyServer()
 {
+	
+
 	m_iPort = 15000;
 	m_vecClient.reserve(100);
 }
@@ -121,13 +123,13 @@ HRESULT CMyServer::NativeConstruct()
 	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, &m_pDevice, &FreatureLV, &m_pDeviceContext)))
 		return E_FAIL;
 
-	if (FAILED(SetSwapChain(g_hWnd, 1280, 720)))
+	if (FAILED(SetSwapChain(g_hWnd, 800, 600)))
 		return E_FAIL;
 
 	if (FAILED(SetBackBufferRTV()))
 		return E_FAIL;
 
-	if (FAILED(SetDepthStencil(1280, 720)))
+	if (FAILED(SetDepthStencil(800, 600)))
 		return E_FAIL;
 
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pBackBufferRTV, m_pDepthStencilView);
@@ -285,6 +287,9 @@ HRESULT CMyServer::CreateServer(int iPort)
 	m_bAcceptThread = true;
 	m_threadApt = thread(&CMyServer::ThreadAccept, this, nullptr);
 
+	// IP 얻어오기
+	GetIP();
+
 	return S_OK;
 }
 
@@ -412,9 +417,9 @@ bool CMyServer::SendAll(USERINFO& userInfo)
 
 void CMyServer::MainWindow()
 {
-	if (ImGui::Begin("Main"))
+	if (ImGui::Begin((const char*)u8"유저 정보창"))
 	{
-		if (ImGui::BeginTable("split1", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders))
+		if (ImGui::BeginTable("split", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders))
 		{
 			ImGui::TableNextColumn();
 			ImGui::Text("Time");
@@ -453,6 +458,24 @@ bool CMyServer::isAlive()
 	return m_bAlive;
 }
 
+void CMyServer::GetIP()
+{
+	char szHostName[MAX_PATH] = { 0 };
+	if (SOCKET_ERROR != gethostname(szHostName, MAX_PATH))
+	{
+		HOSTENT* pHostent = gethostbyname(szHostName);
+		while (nullptr != pHostent)
+		{
+			if (pHostent->h_addrtype == AF_INET)
+			{
+				strcpy(m_szIP, inet_ntoa(*(IN_ADDR*)pHostent->h_addr_list[0]));
+				break;
+			}
+			pHostent++;
+		}
+	}
+}
+
 void CMyServer::Render()
 {
 	XMFLOAT4 vColor(0.45f, 0.55f, 0.6f, 1.f);
@@ -464,17 +487,27 @@ void CMyServer::Render()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	if (ImGui::Begin("MENU"))
+	if (ImGui::Begin("MyServer"))
 	{
+		int flag = 0;
+		float fDragSpeed = 1.f;
+		// 서버가 가동되면 포트번호 변경 불가능
+		if (m_bRun)
+		{
+			flag = ImGuiSliderFlags_NoInput;
+			fDragSpeed = 0.f;
+		}
+		else
+			flag = ImGuiSliderFlags_None;
 		ImGui::BeginChild("##", ImVec2(500, 300));
 		ImGui::PushItemWidth(100);
-		ImGui::Text("IP : ");
+		ImGui::Text("IP : %s", m_szIP);
 		ImGui::Text("Port : ");
 		ImGui::SameLine();
-		ImGui::DragInt("##", &m_iPort);
+		ImGui::DragInt("##", &m_iPort, fDragSpeed, 0, 0, "%d", flag);
 		ImGui::PopItemWidth();
 
-		if (ImGui::Button("Server Open", ImVec2(150.f, 50.f)))
+		if (ImGui::Button((const char*)u8"서버 가동", ImVec2(150.f, 50.f)))
 		{
 			if (S_OK == CreateServer(m_iPort))
 			{
@@ -485,7 +518,7 @@ void CMyServer::Render()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Server Close", ImVec2(150.f, 50.f)))
+		if (ImGui::Button((const char*)u8"서버 종료", ImVec2(150.f, 50.f)))
 		{
 			cout << "서버 종료 실행\n";
 			m_bRun = false;
