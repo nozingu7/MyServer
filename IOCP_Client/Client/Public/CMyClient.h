@@ -32,6 +32,7 @@ private:
 	vector<USERINFO*> m_vecInfo;
 	bool m_bConnectFail = false;
 	bool m_bAlive = true;
+	bool m_bCheck = false;
 
 private:
 	ID3D11Device* m_pDevice;

@@ -5,6 +5,8 @@ CMyClient::CMyClient(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 {
 	m_pDevice->AddRef();
 	m_pDeviceContext->AddRef();
+	memset(m_szName, 0, sizeof(m_szName));
+	memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
 	m_sock = 0;
 	m_bConnectEnable = false;
 }
@@ -266,9 +268,11 @@ void CMyClient::Menu()
 	if (ImGui::BeginPopupModal("NickName", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		TextCenter(u8"닉네임을 설정해주세요!");
-		ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName));
+		if (ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName), ImGuiInputTextFlags_EnterReturnsTrue))
+			m_bCheck = true;
+
 		WindowCenter(u8"확인##1");
-		if (ImGui::Button(u8"확인##1", ImVec2(50.f, 25.f)))
+		if (ImGui::Button(u8"확인##1", ImVec2(50.f, 25.f)) || m_bCheck)
 		{
 			// Connect 함수 호출
 			if (S_OK == ConnectServer(m_szName))
@@ -280,6 +284,7 @@ void CMyClient::Menu()
 				ImGui::CloseCurrentPopup();
 				m_bConnectFail = true;
 			}
+			m_bCheck = false;
 		}
 		ImGui::EndPopup();
 	}
