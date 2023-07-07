@@ -247,8 +247,7 @@ void CMyClient::ShowChat()
 
 		ImGui::EndChild();
 
-		ImGui::InputText("##", m_szInputBuf, IM_ARRAYSIZE(m_szInputBuf));
-		if (GetKeyState(VK_RETURN) & 0x8000)
+		if (ImGui::InputText("##", m_szInputBuf, IM_ARRAYSIZE(m_szInputBuf), ImGuiInputTextFlags_EnterReturnsTrue))
 		{
 			if (strcmp("", m_szInputBuf))
 			{

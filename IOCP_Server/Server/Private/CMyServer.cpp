@@ -2,8 +2,6 @@
 
 CMyServer::CMyServer()
 {
-	
-
 	m_iPort = 15000;
 	m_vecClient.reserve(100);
 }
@@ -395,10 +393,16 @@ bool CMyServer::SendAll(USERINFO& userInfo)
 	char* pBuf = userInfo.szBuf;
 	PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
 	char szName[20] = { 0 };
+	char szMsg[256] = { 0 };
 	memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
 	pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
-	cout << "Message - " << szName << " : " << pBuf << '\n';
+	memcpy(szMsg, pBuf, pHeader->iMsgLen);
 
+	strcpy(szName, UTF8ToMultiByte(szName));
+	strcpy(szMsg, UTF8ToMultiByte(szMsg));
+
+	cout << "Message - " << szName << " : " << szMsg << '\n';
+	
 	WSABUF wsaBuf = { 0 };
 	wsaBuf.buf = userInfo.szBuf;
 	wsaBuf.len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
@@ -476,6 +480,20 @@ void CMyServer::GetIP()
 	}
 }
 
+char* CMyServer::UTF8ToMultiByte(char* msg)
+{
+	char szMsg[128] = { 0 };
+
+	wchar_t strUnicode[256] = { 0, };
+	int nLen = MultiByteToWideChar(CP_UTF8, 0, msg, strlen(msg), NULL, NULL);
+	MultiByteToWideChar(CP_UTF8, 0, msg, strlen(msg), strUnicode, nLen);
+
+	int len = WideCharToMultiByte(CP_ACP, 0, strUnicode, -1, NULL, 0, NULL, NULL);
+	WideCharToMultiByte(CP_ACP, 0, strUnicode, -1, szMsg, len, NULL, NULL);
+
+	return szMsg;
+}
+
 void CMyServer::Render()
 {
 	XMFLOAT4 vColor(0.45f, 0.55f, 0.6f, 1.f);
@@ -489,22 +507,22 @@ void CMyServer::Render()
 
 	if (ImGui::Begin("MyServer"))
 	{
-		int flag = 0;
+		int iFlag = 0;
 		float fDragSpeed = 1.f;
-		// 서버가 가동되면 포트번호 변경 불가능
+		// 서버가 가동시 포트번호 변경 X
 		if (m_bRun)
 		{
-			flag = ImGuiSliderFlags_NoInput;
+			iFlag = ImGuiSliderFlags_NoInput;
 			fDragSpeed = 0.f;
 		}
 		else
-			flag = ImGuiSliderFlags_None;
+			iFlag = ImGuiSliderFlags_None;
 		ImGui::BeginChild("##", ImVec2(500, 300));
 		ImGui::PushItemWidth(100);
 		ImGui::Text("IP : %s", m_szIP);
 		ImGui::Text("Port : ");
 		ImGui::SameLine();
-		ImGui::DragInt("##", &m_iPort, fDragSpeed, 0, 0, "%d", flag);
+		ImGui::DragInt("##", &m_iPort, fDragSpeed, 0, 0, "%d", iFlag);
 		ImGui::PopItemWidth();
 
 		if (ImGui::Button((const char*)u8"서버 가동", ImVec2(150.f, 50.f)))
@@ -515,9 +533,7 @@ void CMyServer::Render()
 				cout << "서버 가동 실행\n";
 			}
 		}
-
 		ImGui::SameLine();
-
 		if (ImGui::Button((const char*)u8"서버 종료", ImVec2(150.f, 50.f)))
 		{
 			cout << "서버 종료 실행\n";
@@ -525,10 +541,9 @@ void CMyServer::Render()
 			m_bAlive = false;
 		}
 
+		// 유저 정보창
 		if (m_bRun)
-		{
 			MainWindow();
-		}
 
 		ImGui::EndChild();
 	}

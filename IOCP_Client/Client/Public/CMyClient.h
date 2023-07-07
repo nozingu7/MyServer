@@ -32,10 +32,8 @@ private:
 	thread m_thread;
 	bool m_bConnectEnable;
 	char m_szName[20];
-	char m_szBuf[1024];
 	char m_szInputBuf[256];
 	vector<USERINFO*> m_vecInfo;
-	USERINFO m_Info;
 	bool m_bConnectFail = false;
 	bool m_bAlive = true;
 

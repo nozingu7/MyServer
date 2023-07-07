@@ -25,6 +25,7 @@ public:
 	void MainWindow();
 	bool isAlive();
 	void GetIP();
+	char* UTF8ToMultiByte(char* msg);
 
 public:
 	void Render();
