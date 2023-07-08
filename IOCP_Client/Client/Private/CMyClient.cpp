@@ -64,6 +64,10 @@ void CMyClient::Init_Imgui()
 
 	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 	ImGuiStyle& style = ImGui::GetStyle();
+
+	// 나중에 버튼 비활성화 되더라도 투명도 그대로 유지하려고 설정
+	style.DisabledAlpha = 1.f;
+
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 	{
 		style.WindowRounding = 0.0f;
@@ -83,7 +87,10 @@ void CMyClient::Render()
 
 	if (ImGui::Begin("MENU"))
 	{
-		Menu();
+		// 현재 서버에 접속한 상태가 아닐때만 활성화
+		ImGui::BeginDisabled(m_bConnectEnable);
+		JoinServer();
+		ImGui::EndDisabled();
 
 		ImGui::SameLine();
 
@@ -96,6 +103,7 @@ void CMyClient::Render()
 	}
 	ImGui::End();
 
+	// 채팅 GUI Render
 	if (m_bConnectEnable)
 		ShowChat();
 
@@ -258,7 +266,7 @@ void CMyClient::ConnectFail()
 	}
 }
 
-void CMyClient::Menu()
+void CMyClient::JoinServer()
 {
 	if (ImGui::Button(u8"채팅서버 입장", ImVec2(150.f, 50.f)))
 		ImGui::OpenPopup("NickName");

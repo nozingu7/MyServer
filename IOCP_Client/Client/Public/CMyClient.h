@@ -20,7 +20,7 @@ public:
 	void TextCenter(const char* str);
 	void WindowCenter(const char* str);
 	void ConnectFail();
-	void Menu();
+	void JoinServer();
 	bool Alive();
 
 private:
