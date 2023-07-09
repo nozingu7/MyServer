@@ -15,7 +15,7 @@ public:
 	void Init_Imgui();
 
 public:
-	bool SendAll(USERINFO& userInfo);
+	bool SendAll(USERINFO& userInfo, OVERLAPPED* over);
 	void MainWindow();
 	bool isAlive();
 	void GetIP();
@@ -45,6 +45,8 @@ private:
 	thread m_threadApt;
 	vector<thread> m_vecThreadWorker;
 	CRITICAL_SECTION m_cs;
+	OVERLAPPED sendOverlap;
+	OVERLAPPED recvOverlap;
 
 private:
 	ID3D11Device* m_pDevice = nullptr;

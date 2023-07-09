@@ -31,19 +31,41 @@ void CMyServer::ThreadWork(void* pData)
 		{
 			if (0 < dwSize)
 			{
-				SendAll(*userInfo);
-				memset(userInfo->szBuf, 0, sizeof(userInfo->szBuf));
+				MyOverlapped* myOverlap = (MyOverlapped*)overlap;
 
-				dwSize = 0;
-				dwFlag = 0;
-				ZeroMemory(overlap, sizeof(OVERLAPPED));
-				WSABUF wsaBuf = { 0 };
-				wsaBuf.buf = userInfo->szBuf;
-				wsaBuf.len = sizeof(userInfo->szBuf);
+				if (RECV == myOverlap->state)
+				{
+					SendAll(*userInfo, overlap);
+					memset(userInfo->szRecvBuf, 0, sizeof(userInfo->szRecvBuf));
 
-				WSARecv(userInfo->sock, &wsaBuf, 1, &dwSize, &dwFlag, overlap, NULL);
-				if (WSAGetLastError() != WSA_IO_PENDING)
-					cout << "PENDING 실패\n";
+					dwSize = 0;
+					dwFlag = 0;
+
+					userInfo->RecvOverlap.wsaBuf.buf = userInfo->szRecvBuf;
+					userInfo->RecvOverlap.wsaBuf.len = sizeof(userInfo->szRecvBuf);
+					userInfo->RecvOverlap.state = RECV;
+
+					if (WSARecv(userInfo->sock, &userInfo->RecvOverlap.wsaBuf, 1, &dwSize, &dwFlag, &userInfo->RecvOverlap.overlap, NULL))
+					{
+						if (WSAGetLastError() != WSA_IO_PENDING)
+							cout << "Recv PENDING 실패\n";
+					}
+				}
+				else if (SEND == myOverlap->state)
+				{
+					char* pBuf = userInfo->szSendBuf;
+					PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+					char szName[20] = { 0 };
+					char szMsg[256] = { 0 };
+					memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
+					pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
+					memcpy(szMsg, pBuf, pHeader->iMsgLen);
+
+					strcpy(szName, UTF8ToMultiByte(szName));
+					strcpy(szMsg, UTF8ToMultiByte(szMsg));
+
+					cout << "Message - " << szName << " : " << szMsg << '\n';
+				}
 			}
 			else
 			{
@@ -53,7 +75,7 @@ void CMyServer::ThreadWork(void* pData)
 		}
 		else
 		{
-			//cout << "비정상 종료\n";
+			cout << "비정상 종료\n";
 			break;
 		}
 	}
@@ -96,20 +118,23 @@ void CMyServer::ThreadAccept(void* pData)
 		m_vecClient.push_back(userInfo);
 		LeaveCriticalSection(&m_cs);
 
-		OVERLAPPED overlap;
-		ZeroMemory(&overlap, sizeof(OVERLAPPED));
+		/*OVERLAPPED overlap;
+		ZeroMemory(&overlap, sizeof(OVERLAPPED));*/
+
+		/*MyOverlapped overlap;
+		memset(&overlap, 0, sizeof(MyOverlapped));*/
 
 		CreateIoCompletionPort((HANDLE)clientSock, m_iocp, (ULONG_PTR)userInfo, 0);
 
-		ZeroMemory(&wsaBuf, sizeof(WSABUF));
-		wsaBuf.buf = userInfo->szBuf;
-		wsaBuf.len = sizeof(userInfo->szBuf);
+		userInfo->RecvOverlap.wsaBuf.buf = userInfo->szRecvBuf;
+		userInfo->RecvOverlap.wsaBuf.len = sizeof(userInfo->szRecvBuf);
+		userInfo->RecvOverlap.state = RECV;
 		dwFlag = 0;
 		dwSize = 0;
 
-		WSARecv(clientSock, &wsaBuf, 1, &dwSize, &dwFlag, &overlap, NULL);
+		WSARecv(clientSock, &userInfo->RecvOverlap.wsaBuf, 1, &dwSize, &dwFlag, &userInfo->RecvOverlap.overlap, NULL);
 		if (WSAGetLastError() != WSA_IO_PENDING)
-			cout << "PENDING 실패\n";
+			cout << "Recv PENDING 실패\n";
 	}
 }
 
@@ -198,13 +223,13 @@ HRESULT CMyServer::ReleaseServer()
 		m_vecThreadWorker[i].join();
 	m_vecThreadWorker.clear();
 	vector<thread>().swap(m_vecThreadWorker);
-	
+
 	// AcceptThread 종료
 	m_bAcceptThread = false;
 	shutdown(m_listenSock, SD_BOTH);
 
 	closesocket(m_listenSock);
-	if(m_threadApt.joinable())
+	if (m_threadApt.joinable())
 		m_threadApt.join();
 
 	// Critical_Section 해제
@@ -270,32 +295,27 @@ void CMyServer::Init_Imgui()
 	ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
 }
 
-bool CMyServer::SendAll(USERINFO& userInfo)
+bool CMyServer::SendAll(USERINFO& userInfo, OVERLAPPED* over)
 {
-	char* pBuf = userInfo.szBuf;
-	PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
-	char szName[20] = { 0 };
-	char szMsg[256] = { 0 };
-	memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
-	pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
-	memcpy(szMsg, pBuf, pHeader->iMsgLen);
+	memcpy(userInfo.szSendBuf, userInfo.szRecvBuf, sizeof(userInfo.szRecvBuf));
+	userInfo.SendOverlap.wsaBuf.buf = userInfo.szSendBuf;
+	userInfo.SendOverlap.wsaBuf.len = sizeof(userInfo.szRecvBuf);
+	userInfo.SendOverlap.state = SEND;
 
-	strcpy(szName, UTF8ToMultiByte(szName));
-	strcpy(szMsg, UTF8ToMultiByte(szMsg));
-
-	cout << "Message - " << szName << " : " << szMsg << '\n';
-	
-	WSABUF wsaBuf = { 0 };
-	wsaBuf.buf = userInfo.szBuf;
-	wsaBuf.len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
 	DWORD dwByte = 0;
 	DWORD dwFlag = 0;
 
 	auto iter = m_vecClient.begin();
 
 	EnterCriticalSection(&m_cs);
-	for (; iter != m_vecClient.end(); ++iter)
-		WSASend((*iter)->sock, &wsaBuf, 1, &dwByte, dwFlag, NULL, NULL);
+	for (int i = 0; i < (int)m_vecClient.size(); ++i)
+	{
+		if (WSASend(m_vecClient[i]->sock, &userInfo.SendOverlap.wsaBuf, 1, &dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
+		{
+			if (WSA_IO_PENDING != WSAGetLastError())
+				cout << "SEND PENDING 실패\n";
+		}
+	}
 	LeaveCriticalSection(&m_cs);
 
 	return true;
@@ -322,7 +342,7 @@ void CMyServer::MainWindow()
 				ImGui::TableNextColumn();
 				ImGui::Text(format("{:%Y-%m-%d}", m_vecClient[i]->date).c_str());
 				ImGui::SameLine();
-				ImGui::Text("%02d:%02d:%02d", 
+				ImGui::Text("%02d:%02d:%02d",
 					m_vecClient[i]->time.hours().count() + 9,
 					m_vecClient[i]->time.minutes().count(),
 					m_vecClient[i]->time.seconds().count());
@@ -394,6 +414,14 @@ void CMyServer::Render()
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+
+	for (int i = 0; i < (int)m_vecThreadWorker.size(); ++i)
+	{
+		if (false == m_vecThreadWorker[i].joinable())
+		{
+			cout << i << "번 쓰레드 정지..\n";
+		}
+	}
 
 	if (ImGui::Begin("MyServer"))
 	{

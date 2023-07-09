@@ -149,7 +149,7 @@ HRESULT CMainApp::InitClient()
 	return S_OK;
 }
 
-void CMainApp::Render()
+void CMainApp::Render(double TimeDelta)
 {
 	XMFLOAT4 vColor(0.45f, 0.55f, 0.6f, 1.f);
 	m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, (float*)&vColor);
@@ -157,7 +157,7 @@ void CMainApp::Render()
 
 	// ¼­¹ö GUI Render
 	if (nullptr != m_pClient)
-		m_pClient->Render();
+		m_pClient->Render(TimeDelta);
 
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pBackBufferRTV, m_pDepthStencilView);
 	m_pSwapChain->Present(0, 0);

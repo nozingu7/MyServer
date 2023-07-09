@@ -17,6 +17,8 @@
 #include <thread>
 #include <memory>
 #include <vector>
+#include <string>
+#include <ctime>
 
 #define _CRTDBG_MAP_ALLOC
 

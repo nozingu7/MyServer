@@ -5,6 +5,8 @@
 #include "Client.h"
 #include "CMainApp.h"
 
+#pragma comment(linker, "/entry:wWinMainCRTStartup /subsystem:console")
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -60,6 +62,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	QueryPerformanceCounter(&OriginTime);
 	QueryPerformanceFrequency(&CpuTick);
 
+	LARGE_INTEGER CurrentTime2;
+	LARGE_INTEGER OldTime2;
+	LARGE_INTEGER OriginTime2;
+	LARGE_INTEGER CpuTick2;
+	float fTimeDelta2 = 0.f;
+
+	QueryPerformanceCounter(&CurrentTime2);
+	QueryPerformanceCounter(&OldTime2);
+	QueryPerformanceCounter(&OriginTime2);
+	QueryPerformanceFrequency(&CpuTick2);
+
 	// 기본 메시지 루프입니다:
 	while (mainApp.isAlive())
 	{
@@ -76,14 +89,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		}
 
 		{
-			QueryPerformanceCounter(&CurrentTime);	// 2000	//	3000 // 4000 // 5000
-
+			QueryPerformanceCounter(&CurrentTime);
 			if (CurrentTime.QuadPart - OriginTime.QuadPart > CpuTick.QuadPart)
 			{
 				QueryPerformanceFrequency(&CpuTick);
 				OriginTime = CurrentTime;
 			}
-
 			fTimeDelta += float(CurrentTime.QuadPart - OldTime.QuadPart) / CpuTick.QuadPart;
 			OldTime = CurrentTime;
 		}
@@ -91,7 +102,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		if (1.f / 60.f <= fTimeDelta)
 		{
 			fTimeDelta = 0.f;
-			mainApp.Render();
+
+			QueryPerformanceCounter(&CurrentTime2);
+			if (CurrentTime2.QuadPart - OriginTime2.QuadPart > CpuTick2.QuadPart)
+			{
+				QueryPerformanceFrequency(&CpuTick2);
+				OriginTime2 = CurrentTime2;
+			}
+			fTimeDelta2 = float(CurrentTime2.QuadPart - OldTime2.QuadPart) / CpuTick2.QuadPart;
+			OldTime2 = CurrentTime2;
+
+			mainApp.Render(fTimeDelta2);
 		}
 	}
 

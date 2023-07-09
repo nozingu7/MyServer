@@ -2,6 +2,12 @@
 #include "common.h"
 #include "Define.h"
 
+struct Dummy
+{
+	SOCKET sock;
+	char szName[30];
+};
+
 class CMyClient
 {
 public:
@@ -13,8 +19,8 @@ private:
 
 public:
 	void Init_Imgui();
-	void Render();
-	void ShowChat();
+	void Render(double TimeDelta);
+	void ShowChat(double TimeDelta);
 	void Release();
 	void ThreadRecv(void* pData);
 	void TextCenter(const char* str);
@@ -22,6 +28,7 @@ public:
 	void ConnectFail();
 	void JoinServer();
 	bool Alive();
+	void AutoChat();
 
 private:
 	SOCKET m_sock;
@@ -33,6 +40,11 @@ private:
 	bool m_bConnectFail = false;
 	bool m_bAlive = true;
 	bool m_bCheck = false;
+	vector<Dummy*> m_vecDummy;
+	vector<thread> m_vecThread;
+	int m_iDummySize = 0;
+	vector<const char*> m_vecChat;
+	double m_ChatTime = 0.0;
 
 private:
 	ID3D11Device* m_pDevice;

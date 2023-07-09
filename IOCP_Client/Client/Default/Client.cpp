@@ -5,6 +5,8 @@
 #include "Client.h"
 #include "CMainApp.h"
 
+#pragma comment(linker, "/entry:wWinMainCRTStartup /subsystem:console")
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:

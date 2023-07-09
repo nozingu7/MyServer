@@ -15,7 +15,7 @@ private:
 
 public:
 	HRESULT NativeConstruct();
-	void Render();
+	void Render(double TimeDelta);
 	bool isAlive();
 
 private:

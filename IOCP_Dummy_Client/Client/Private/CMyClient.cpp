@@ -9,6 +9,33 @@ CMyClient::CMyClient(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 	memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
 	m_sock = 0;
 	m_bConnectEnable = false;
+	m_vecDummy.reserve(100);
+	m_iDummySize = 100;
+
+	/*m_vecChat.push_back("안녕하세요");
+	m_vecChat.push_back("식사하셨나요?");
+	m_vecChat.push_back("반갑습니다!");
+	m_vecChat.push_back("안녕히계세요");
+	m_vecChat.push_back("Hello?");
+	m_vecChat.push_back("Everybody Jump!!!");
+	m_vecChat.push_back("내가 누구게?");
+	m_vecChat.push_back("저는 더미 클라이언트입니다^^");
+	m_vecChat.push_back("박성호 파이팅~");
+	m_vecChat.push_back("Shit the Fuck!!!!!!");*/
+
+
+	m_vecChat.push_back("HI");
+	m_vecChat.push_back("HELLO");
+	m_vecChat.push_back("DEATH");
+	m_vecChat.push_back("IVE");
+	m_vecChat.push_back("KINGKONG");
+	m_vecChat.push_back("nozingu");
+	m_vecChat.push_back("ParkSungHo");
+	m_vecChat.push_back("Show Me The Money");
+	m_vecChat.push_back("TEKKEN8");
+	m_vecChat.push_back("STREET FIGHTER6");
+
+	srand((unsigned int)time(NULL));
 }
 
 CMyClient::~CMyClient()
@@ -25,24 +52,35 @@ HRESULT CMyClient::ConnectServer(const char* szName)
 		return E_FAIL;
 	}
 
-	m_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	SOCKADDR_IN addr;
-	addr.sin_family = AF_INET;
-	addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-	addr.sin_port = htons(15000);
-
-	if (SOCKET_ERROR == connect(m_sock, (SOCKADDR*)&addr, sizeof(addr)))
+	for (int i = 0; i < m_iDummySize; ++i)
 	{
-		cout << "서버에 연결할 수 없습니다!\n";
-		return E_FAIL;
+		Dummy* pDummy = new Dummy;
+		pDummy->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+		SOCKADDR_IN addr;
+		addr.sin_family = AF_INET;
+		addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+		addr.sin_port = htons(15000);
+
+		if (SOCKET_ERROR == connect(pDummy->sock, (SOCKADDR*)&addr, sizeof(addr)))
+		{
+			cout << "서버에 연결할 수 없습니다!\n";
+			return E_FAIL;
+		}
+		
+		char Name[30] = { 0 };
+		strcpy(Name, szName);
+		strcat(Name, to_string(i + 1).c_str());
+
+		send(pDummy->sock, Name, (int)strlen(Name) + 1, 0);
+
+		strcpy(pDummy->szName, Name);
+		m_vecDummy.push_back(pDummy);
+
+		m_bConnectEnable = true;
+
+		m_vecThread.push_back(thread(&CMyClient::ThreadRecv, this, &pDummy->sock));
 	}
-
-	send(m_sock, szName, strlen(szName) + 1, 0);
-
-	m_bConnectEnable = true;
-
-	m_thread = thread(&CMyClient::ThreadRecv, this, nullptr);
 
 	return S_OK;
 }
@@ -79,7 +117,7 @@ void CMyClient::Init_Imgui()
 	ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
 }
 
-void CMyClient::Render()
+void CMyClient::Render(double TimeDelta)
 {
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -105,7 +143,7 @@ void CMyClient::Render()
 
 	// 채팅 GUI Render
 	if (m_bConnectEnable)
-		ShowChat();
+		ShowChat(TimeDelta);
 
 	ImGui::Render();
 
@@ -120,7 +158,7 @@ void CMyClient::Render()
 	}
 }
 
-void CMyClient::ShowChat()
+void CMyClient::ShowChat(double TimeDelta)
 {
 	if (ImGui::Begin(u8"채팅"))
 	{
@@ -132,52 +170,12 @@ void CMyClient::ShowChat()
 
 		ImGui::EndChild();
 
-		if (ImGui::InputText("##", m_szInputBuf, IM_ARRAYSIZE(m_szInputBuf), ImGuiInputTextFlags_EnterReturnsTrue))
+		m_ChatTime += TimeDelta;
+
+		if (3.0 < m_ChatTime)
 		{
-			if (strcmp("", m_szInputBuf))
-			{
-				BYTE* pBuf = new BYTE[sizeof(PACKET)];
-				memset(pBuf, 0, sizeof(PACKET));
-
-				PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
-				pHeader->iNameLen = (int)strlen(m_szName) + 1;
-				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
-
-				char* pMsg = (char*)(pBuf + sizeof(PACKETHEADER));
-				memcpy(pMsg, m_szName, pHeader->iNameLen);
-				pMsg += pHeader->iNameLen;
-				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
-
-				int len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
-				send(m_sock, (char*)pBuf, len, 0);
-				delete[] pBuf;
-				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
-			}
-		}
-
-		ImGui::SameLine();
-
-		if (ImGui::Button(u8"보내기", ImVec2(50, 25)))
-		{
-			if (strcmp("", m_szInputBuf))
-			{
-				BYTE* pBuf = new BYTE[sizeof(PACKET)];
-				memset(pBuf, 0, sizeof(PACKET));
-
-				PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
-				pHeader->iNameLen = (int)strlen(m_szName) + 1;
-				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
-
-				char* pMsg = (char*)(pBuf + sizeof(PACKETHEADER));
-				memcpy(pMsg, m_szName, pHeader->iNameLen);
-				pMsg += pHeader->iNameLen;
-				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
-
-				int len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
-				send(m_sock, (char*)pBuf, len, 0);
-				delete[] pBuf;
-				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
-			}
+			m_ChatTime = 0.0;
+			AutoChat();
 		}
 	}
 	ImGui::End();
@@ -185,10 +183,18 @@ void CMyClient::ShowChat()
 
 void CMyClient::Release()
 {
-	shutdown(m_sock, SD_BOTH);
-	closesocket(m_sock);
-	if (m_thread.joinable())
-		m_thread.join();
+	for (int i = 0; i < (int)m_vecDummy.size(); ++i)
+	{
+		shutdown(m_vecDummy[i]->sock, SD_BOTH);
+		closesocket(m_vecDummy[i]->sock);
+		delete m_vecDummy[i];
+	}
+
+	for (int i = 0; i < (int)m_vecThread.size(); ++i)
+	{
+		if (m_vecThread[i].joinable())
+			m_vecThread[i].join();
+	}
 
 	for (int i = 0; i < m_vecInfo.size(); ++i)
 		delete m_vecInfo[i];
@@ -207,12 +213,14 @@ void CMyClient::Release()
 
 void CMyClient::ThreadRecv(void* pData)
 {
+	SOCKET* sock = (SOCKET*)pData;
 	char msg[1024] = { 0 };
 	int len = sizeof(msg);
+	int iCode = 0;
 
-	while (0 < recv(m_sock, msg, len, 0))
+	while (0 < (iCode = recv(*sock, msg, len, 0)))
 	{
-		PACKETHEADER* pHeader = (PACKETHEADER*)msg;
+		/*PACKETHEADER* pHeader = (PACKETHEADER*)msg;
 		int iNameLen = pHeader->iNameLen;
 		int iMsgLen = pHeader->iMsgLen;
 		char* pBuf = msg + sizeof(PACKETHEADER);
@@ -221,7 +229,22 @@ void CMyClient::ThreadRecv(void* pData)
 		memcpy(pInfo->szName, pBuf, iNameLen);
 		memcpy(pInfo->szBuf, pBuf + iNameLen, iMsgLen);
 		m_vecInfo.push_back(pInfo);
-		memset(msg, 0, len);
+		memset(msg, 0, len);*/
+
+
+		/*char* pBuf = msg;
+		PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+		char szName[20] = { 0 };
+		char szMsg[256] = { 0 };
+		memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
+		pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
+		memcpy(szMsg, pBuf, pHeader->iMsgLen);
+
+		UserInfo* pInfo = new USERINFO;
+		memcpy(pInfo->szName, szName, pHeader->iNameLen);
+		memcpy(pInfo->szBuf, pBuf + pHeader->iNameLen, pHeader->iMsgLen);
+		m_vecInfo.push_back(pInfo);
+		memset(msg, 0, len);*/
 	}
 }
 
@@ -307,4 +330,41 @@ void CMyClient::JoinServer()
 bool CMyClient::Alive()
 {
 	return m_bAlive;
+}
+
+void CMyClient::AutoChat()
+{
+	for (int i = 0; i < (int)m_vecDummy.size(); ++i)
+	{
+		int num = rand() % 100;
+		if (50 <= num)
+		{
+			int idx = num % 10;
+
+			BYTE* pBuf = new BYTE[sizeof(PACKET)];
+			memset(pBuf, 0, sizeof(PACKET));
+
+			PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+			pHeader->iNameLen = (int)strlen(m_vecDummy[i]->szName) + 1;
+			pHeader->iMsgLen = (int)strlen(m_vecChat[idx]) + 1;
+
+			char* pMsg = (char*)(pBuf + sizeof(PACKETHEADER));
+			memcpy(pMsg, m_vecDummy[i]->szName, pHeader->iNameLen);
+			pMsg += pHeader->iNameLen;
+			memcpy(pMsg, m_vecChat[idx], pHeader->iMsgLen);
+
+			int len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
+			int iResult = send(m_vecDummy[i]->sock, (char*)pBuf, len, 0);
+			if (-1 == iResult)
+			{
+				cout << "전송 실패 -- Error : " << GetLastError() << '\n';
+			}
+			else
+			{
+				cout << "전송 성공 -- 전송 바이트 : " << iResult << '\n';
+			}
+
+			delete[] pBuf;
+		}
+	}
 }

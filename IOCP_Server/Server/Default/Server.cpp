@@ -79,7 +79,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         {
-            QueryPerformanceCounter(&CurrentTime);	// 2000	//	3000 // 4000 // 5000
+            QueryPerformanceCounter(&CurrentTime);
 
             if (CurrentTime.QuadPart - OriginTime.QuadPart > CpuTick.QuadPart)
             {
