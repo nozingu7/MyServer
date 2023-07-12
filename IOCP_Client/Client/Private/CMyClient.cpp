@@ -38,7 +38,7 @@ HRESULT CMyClient::ConnectServer(const char* szName)
 		return E_FAIL;
 	}
 
-	send(m_sock, szName, strlen(szName) + 1, 0);
+	send(m_sock, szName, (int)strlen(szName) + 1, 0);
 
 	m_bConnectEnable = true;
 

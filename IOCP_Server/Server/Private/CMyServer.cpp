@@ -35,12 +35,11 @@ void CMyServer::ThreadWork(void* pData)
 
 				if (RECV == myOverlap->state)
 				{
-					SendAll(*userInfo, overlap);
+					SendAll(*userInfo, (int)dwSize);
 					memset(userInfo->szRecvBuf, 0, sizeof(userInfo->szRecvBuf));
 
 					dwSize = 0;
 					dwFlag = 0;
-
 					userInfo->RecvOverlap.wsaBuf.buf = userInfo->szRecvBuf;
 					userInfo->RecvOverlap.wsaBuf.len = sizeof(userInfo->szRecvBuf);
 					userInfo->RecvOverlap.state = RECV;
@@ -117,12 +116,6 @@ void CMyServer::ThreadAccept(void* pData)
 		EnterCriticalSection(&m_cs);
 		m_vecClient.push_back(userInfo);
 		LeaveCriticalSection(&m_cs);
-
-		/*OVERLAPPED overlap;
-		ZeroMemory(&overlap, sizeof(OVERLAPPED));*/
-
-		/*MyOverlapped overlap;
-		memset(&overlap, 0, sizeof(MyOverlapped));*/
 
 		CreateIoCompletionPort((HANDLE)clientSock, m_iocp, (ULONG_PTR)userInfo, 0);
 
@@ -295,11 +288,11 @@ void CMyServer::Init_Imgui()
 	ImGui_ImplDX11_Init(m_pDevice, m_pDeviceContext);
 }
 
-bool CMyServer::SendAll(USERINFO& userInfo, OVERLAPPED* over)
+bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 {
 	memcpy(userInfo.szSendBuf, userInfo.szRecvBuf, sizeof(userInfo.szRecvBuf));
 	userInfo.SendOverlap.wsaBuf.buf = userInfo.szSendBuf;
-	userInfo.SendOverlap.wsaBuf.len = sizeof(userInfo.szRecvBuf);
+	userInfo.SendOverlap.wsaBuf.len = iSize;
 	userInfo.SendOverlap.state = SEND;
 
 	DWORD dwByte = 0;
@@ -387,8 +380,8 @@ char* CMyServer::UTF8ToMultiByte(char* msg)
 	char szMsg[128] = { 0 };
 
 	wchar_t strUnicode[256] = { 0, };
-	int nLen = MultiByteToWideChar(CP_UTF8, 0, msg, strlen(msg), NULL, NULL);
-	MultiByteToWideChar(CP_UTF8, 0, msg, strlen(msg), strUnicode, nLen);
+	int nLen = (int)MultiByteToWideChar(CP_UTF8, 0, msg, (int)strlen(msg), NULL, NULL);
+	MultiByteToWideChar(CP_UTF8, 0, msg, (int)strlen(msg), strUnicode, nLen);
 
 	int len = WideCharToMultiByte(CP_ACP, 0, strUnicode, -1, NULL, 0, NULL, NULL);
 	WideCharToMultiByte(CP_ACP, 0, strUnicode, -1, szMsg, len, NULL, NULL);
@@ -399,8 +392,8 @@ char* CMyServer::UTF8ToMultiByte(char* msg)
 char* CMyServer::MultiByteToUTF8(char* msg)
 {
 	wchar_t strUnicode[256] = { 0, };
-	int nLen = MultiByteToWideChar(CP_ACP, 0, msg, strlen(msg), NULL, NULL);
-	MultiByteToWideChar(CP_ACP, 0, msg, strlen(msg), strUnicode, nLen);
+	int nLen = MultiByteToWideChar(CP_ACP, 0, msg, (int)strlen(msg), NULL, NULL);
+	MultiByteToWideChar(CP_ACP, 0, msg, (int)strlen(msg), strUnicode, nLen);
 
 	char strUtf8[256] = { 0, };
 	int nLen2 = WideCharToMultiByte(CP_UTF8, 0, strUnicode, lstrlenW(strUnicode), NULL, 0, NULL, NULL);

@@ -15,7 +15,7 @@ public:
 	void Init_Imgui();
 
 public:
-	bool SendAll(USERINFO& userInfo, OVERLAPPED* over);
+	bool SendAll(USERINFO& userInfo, int iSize);
 	void MainWindow();
 	bool isAlive();
 	void GetIP();
