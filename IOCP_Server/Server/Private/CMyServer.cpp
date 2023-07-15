@@ -25,7 +25,8 @@ void CMyServer::ThreadWork(void* pData)
 
 	while (m_bWorkerThread)
 	{
-		bResult = GetQueuedCompletionStatus(m_iocp, &dwSize, (PULONG_PTR)&userInfo, &overlap, INFINITE);
+		bResult = GetQueuedCompletionStatus(m_iocp, &dwSize,
+					(PULONG_PTR)&userInfo, &overlap, INFINITE);
 
 		if (bResult)
 		{
@@ -44,7 +45,8 @@ void CMyServer::ThreadWork(void* pData)
 					userInfo->RecvOverlap.wsaBuf.len = sizeof(userInfo->szRecvBuf);
 					userInfo->RecvOverlap.state = RECV;
 
-					if (WSARecv(userInfo->sock, &userInfo->RecvOverlap.wsaBuf, 1, &dwSize, &dwFlag, &userInfo->RecvOverlap.overlap, NULL))
+					if (WSARecv(userInfo->sock, &userInfo->RecvOverlap.wsaBuf, 1, &dwSize,
+						&dwFlag, &userInfo->RecvOverlap.overlap, NULL))
 					{
 						if (WSAGetLastError() != WSA_IO_PENDING)
 							cout << "Recv PENDING 실패\n";
@@ -52,7 +54,7 @@ void CMyServer::ThreadWork(void* pData)
 				}
 				else if (SEND == myOverlap->state)
 				{
-					char* pBuf = userInfo->szSendBuf;
+					/*char* pBuf = userInfo->szSendBuf;
 					PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
 					char szName[20] = { 0 };
 					char szMsg[256] = { 0 };
@@ -63,7 +65,7 @@ void CMyServer::ThreadWork(void* pData)
 					strcpy(szName, UTF8ToMultiByte(szName));
 					strcpy(szMsg, UTF8ToMultiByte(szMsg));
 
-					cout << "Message - " << szName << " : " << szMsg << '\n';
+					cout << "Message - " << szName << " : " << szMsg << '\n';*/
 				}
 			}
 			else
@@ -97,21 +99,9 @@ void CMyServer::ThreadAccept(void* pData)
 			continue;
 
 		cout << "클라이언트 접속\n";
-
-		char msg[20] = { 0 };
-		recv(clientSock, msg, sizeof(msg), 0);
-
-		userInfo = new USERINFO;
-		ZeroMemory(userInfo, sizeof(USERINFO));
-		userInfo->sock = clientSock;
-		strcpy(userInfo->szIP, inet_ntoa(clientAddr.sin_addr));
-		userInfo->iPort = ntohs(clientAddr.sin_port);
-		strcpy(userInfo->szName, UTF8ToMultiByte(msg));
-
-		system_clock::time_point now = system_clock::now();
-		time_point<system_clock, days> dp = floor<days>(now);
-		userInfo->date = year_month_day(dp);
-		userInfo->time = hh_mm_ss<milliseconds>{ floor<milliseconds>(now - dp) };
+		userInfo = SetUpUserData(clientSock, clientAddr);
+		if (nullptr == userInfo)
+			continue;
 
 		EnterCriticalSection(&m_cs);
 		m_vecClient.push_back(userInfo);
@@ -260,6 +250,26 @@ HRESULT CMyServer::RemoveClient(SOCKET sock)
 	return S_OK;
 }
 
+USERINFO* CMyServer::SetUpUserData(SOCKET sock, SOCKADDR_IN addr)
+{
+	char msg[20] = { 0 };
+	recv(sock, msg, sizeof(msg), 0);
+
+	USERINFO* userInfo = new USERINFO;
+	ZeroMemory(userInfo, sizeof(USERINFO));
+	userInfo->sock = sock;
+	strcpy(userInfo->szIP, inet_ntoa(addr.sin_addr));
+	userInfo->iPort = ntohs(addr.sin_port);
+	strcpy(userInfo->szName, UTF8ToMultiByte(msg));
+
+	system_clock::time_point now = system_clock::now();
+	time_point<system_clock, days> dp = floor<days>(now);
+	userInfo->date = year_month_day(dp);
+	userInfo->time = hh_mm_ss<milliseconds>{ floor<milliseconds>(now - dp) };
+
+	return userInfo;
+}
+
 void CMyServer::Init_Imgui()
 {
 	IMGUI_CHECKVERSION();
@@ -290,6 +300,19 @@ void CMyServer::Init_Imgui()
 
 bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 {
+	char* pBuf = userInfo.szRecvBuf;
+	PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+	char szName[20] = { 0 };
+	char szMsg[256] = { 0 };
+	memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
+	pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
+	memcpy(szMsg, pBuf, pHeader->iMsgLen);
+
+	strcpy(szName, UTF8ToMultiByte(szName));
+	strcpy(szMsg, UTF8ToMultiByte(szMsg));
+
+	cout << "Message - " << szName << " : " << szMsg << '\n';
+
 	memcpy(userInfo.szSendBuf, userInfo.szRecvBuf, sizeof(userInfo.szRecvBuf));
 	userInfo.SendOverlap.wsaBuf.buf = userInfo.szSendBuf;
 	userInfo.SendOverlap.wsaBuf.len = iSize;
@@ -303,7 +326,8 @@ bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 	EnterCriticalSection(&m_cs);
 	for (int i = 0; i < (int)m_vecClient.size(); ++i)
 	{
-		if (WSASend(m_vecClient[i]->sock, &userInfo.SendOverlap.wsaBuf, 1, &dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
+		if (WSASend(m_vecClient[i]->sock, &userInfo.SendOverlap.wsaBuf, 1,
+			&dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
 		{
 			if (WSA_IO_PENDING != WSAGetLastError())
 				cout << "SEND PENDING 실패\n";

@@ -12,6 +12,7 @@ public:
 	HRESULT CreateServer(int iPort);
 	HRESULT ReleaseServer();
 	HRESULT RemoveClient(SOCKET sock);
+	USERINFO* SetUpUserData(SOCKET sock, SOCKADDR_IN addr);
 	void Init_Imgui();
 
 public:
