@@ -155,7 +155,7 @@ void CMainApp::Render()
 	m_pDeviceContext->ClearRenderTargetView(m_pBackBufferRTV, (float*)&vColor);
 	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 
-	// ¼­¹ö GUI Render
+	// ï¿½ï¿½ï¿½ï¿½ GUI Render
 	if (nullptr != m_pClient)
 		m_pClient->Render();
 

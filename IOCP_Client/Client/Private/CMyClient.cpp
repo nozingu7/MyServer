@@ -21,7 +21,7 @@ HRESULT CMyClient::ConnectServer(const char* szName)
 	WSAData wsadata;
 	if (0 != WSAStartup(MAKEWORD(2, 2), &wsadata))
 	{
-		cout << "À©¼Ó ÃÊ±âÈ­ ½ÇÆÐ!\n";
+		cout << "ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ ï¿½ï¿½ï¿½ï¿½!\n";
 		return E_FAIL;
 	}
 
@@ -34,7 +34,7 @@ HRESULT CMyClient::ConnectServer(const char* szName)
 
 	if (SOCKET_ERROR == connect(m_sock, (SOCKADDR*)&addr, sizeof(addr)))
 	{
-		cout << "¼­¹ö¿¡ ¿¬°áÇÒ ¼ö ¾ø½À´Ï´Ù!\n";
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½!\n";
 		return E_FAIL;
 	}
 
@@ -65,7 +65,7 @@ void CMyClient::Init_Imgui()
 	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 	ImGuiStyle& style = ImGui::GetStyle();
 
-	// ³ªÁß¿¡ ¹öÆ° ºñÈ°¼ºÈ­ µÇ´õ¶óµµ Åõ¸íµµ ±×´ë·Î À¯ÁöÇÏ·Á°í ¼³Á¤
+	// ï¿½ï¿½ï¿½ß¿ï¿½ ï¿½ï¿½Æ° ï¿½ï¿½È°ï¿½ï¿½È­ ï¿½Ç´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	style.DisabledAlpha = 1.f;
 
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
@@ -87,23 +87,23 @@ void CMyClient::Render()
 
 	if (ImGui::Begin("MENU"))
 	{
-		// ÇöÀç ¼­¹ö¿¡ Á¢¼ÓÇÑ »óÅÂ°¡ ¾Æ´Ò¶§¸¸ È°¼ºÈ­
+		// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â°ï¿½ ï¿½Æ´Ò¶ï¿½ï¿½ï¿½ È°ï¿½ï¿½È­
 		ImGui::BeginDisabled(m_bConnectEnable);
 		JoinServer();
 		ImGui::EndDisabled();
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(u8"¼­¹ö Á¾·á", ImVec2(150.f, 50.f)))
+		if (ImGui::Button(u8"ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½", ImVec2(150.f, 50.f)))
 		{
-			cout << "¼­¹ö Á¾·á ½ÇÇà\n";
+			cout << "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½\n";
 			m_bAlive = false;
 			m_bConnectEnable = false;
 		}
 	}
 	ImGui::End();
 
-	// Ã¤ÆÃ GUI Render
+	// Ã¤ï¿½ï¿½ GUI Render
 	if (m_bConnectEnable)
 		ShowChat();
 
@@ -122,7 +122,7 @@ void CMyClient::Render()
 
 void CMyClient::ShowChat()
 {
-	if (ImGui::Begin(u8"Ã¤ÆÃ"))
+	if (ImGui::Begin(u8"Ã¤ï¿½ï¿½"))
 	{
 		ImGui::BeginChild("Chatting", ImVec2(0, -25), true, 0);
 
@@ -157,7 +157,7 @@ void CMyClient::ShowChat()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(u8"º¸³»±â", ImVec2(50, 25)))
+		if (ImGui::Button(u8"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½", ImVec2(50, 25)))
 		{
 			if (strcmp("", m_szInputBuf))
 			{
@@ -253,10 +253,10 @@ void CMyClient::ConnectFail()
 	style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
 	if (ImGui::BeginPopupModal("ConnectFail", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		TextCenter(u8"Ã¤ÆÃ¼­¹ö ÀÔÀå ½ÇÆÐ!");
-		WindowCenter(u8"È®ÀÎ##2");
+		TextCenter(u8"Ã¤ï¿½Ã¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½!");
+		WindowCenter(u8"È®ï¿½ï¿½##2");
 
-		if (ImGui::Button(u8"È®ÀÎ##2", ImVec2(50.f, 25.f)))
+		if (ImGui::Button(u8"È®ï¿½ï¿½##2", ImVec2(50.f, 25.f)))
 		{
 			m_bConnectFail = false;
 			ImGui::CloseCurrentPopup();
@@ -268,21 +268,21 @@ void CMyClient::ConnectFail()
 
 void CMyClient::JoinServer()
 {
-	if (ImGui::Button(u8"Ã¤ÆÃ¼­¹ö ÀÔÀå", ImVec2(150.f, 50.f)))
+	if (ImGui::Button(u8"Ã¤ï¿½Ã¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½", ImVec2(150.f, 50.f)))
 		ImGui::OpenPopup("NickName");
 
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 	ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 	if (ImGui::BeginPopupModal("NickName", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		TextCenter(u8"´Ð³×ÀÓÀ» ¼³Á¤ÇØÁÖ¼¼¿ä!");
+		TextCenter(u8"ï¿½Ð³ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¼ï¿½ï¿½ï¿½!");
 		if (ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName), ImGuiInputTextFlags_EnterReturnsTrue))
 			m_bCheck = true;
 
-		WindowCenter(u8"È®ÀÎ##1");
-		if (ImGui::Button(u8"È®ÀÎ##1", ImVec2(50.f, 25.f)) || m_bCheck)
+		WindowCenter(u8"È®ï¿½ï¿½##1");
+		if (ImGui::Button(u8"È®ï¿½ï¿½##1", ImVec2(50.f, 25.f)) || m_bCheck)
 		{
-			// Connect ÇÔ¼ö È£Ãâ
+			// Connect ï¿½Ô¼ï¿½ È£ï¿½ï¿½
 			if (S_OK == ConnectServer(m_szName))
 			{
 				ImGui::CloseCurrentPopup();
@@ -297,7 +297,7 @@ void CMyClient::JoinServer()
 		ImGui::EndPopup();
 	}
 
-	// ¿¬°á ½ÇÆÐ ÆË¾÷Ã¢
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ë¾ï¿½Ã¢
 	if (m_bConnectFail)
 	{
 		ConnectFail();

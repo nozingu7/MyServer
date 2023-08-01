@@ -49,7 +49,7 @@ void CMyServer::ThreadWork(void* pData)
 						&dwFlag, &userInfo->RecvOverlap.overlap, NULL))
 					{
 						if (WSAGetLastError() != WSA_IO_PENDING)
-							cout << "Recv PENDING ½ÇÆÐ\n";
+							cout << "Recv PENDING FAILED\n";
 					}
 				}
 				else if (SEND == myOverlap->state)
@@ -70,13 +70,13 @@ void CMyServer::ThreadWork(void* pData)
 			}
 			else
 			{
-				cout << "Å¬¶óÀÌ¾ðÆ® ¿¬°á ÇØÁ¦\n";
+				cout << "í´ë¼ì´ì–¸íŠ¸ ì ‘ì† ì¢…ë£Œ\n";
 				RemoveClient(userInfo->sock);
 			}
 		}
 		else
 		{
-			cout << "ºñÁ¤»ó Á¾·á\n";
+			cout << "ë¹„ì •ìƒ ì¢…ë£Œ\n";
 			break;
 		}
 	}
@@ -98,7 +98,7 @@ void CMyServer::ThreadAccept(void* pData)
 		if (INVALID_SOCKET == (clientSock = accept(m_listenSock, (SOCKADDR*)&clientAddr, &addrlen)))
 			continue;
 
-		cout << "Å¬¶óÀÌ¾ðÆ® Á¢¼Ó\n";
+		cout << "Client Accept\n";
 		userInfo = SetUpUserData(clientSock, clientAddr);
 		if (nullptr == userInfo)
 			continue;
@@ -117,7 +117,7 @@ void CMyServer::ThreadAccept(void* pData)
 
 		WSARecv(clientSock, &userInfo->RecvOverlap.wsaBuf, 1, &dwSize, &dwFlag, &userInfo->RecvOverlap.overlap, NULL);
 		if (WSAGetLastError() != WSA_IO_PENDING)
-			cout << "Recv PENDING ½ÇÆÐ\n";
+			cout << "Recv PENDING FAILED\n";
 	}
 }
 
@@ -125,17 +125,17 @@ HRESULT CMyServer::CreateServer(int iPort)
 {
 	if (0 != WSAStartup(MAKEWORD(2, 2), &m_wsaData))
 	{
-		cout << "¼­¹ö »ý¼º ½ÇÆÐ\n";
+		cout << "WinSock Init Failed\n";
 		return E_FAIL;
 	}
 
 	InitializeCriticalSection(&m_cs);
 
-	// IOCP »ý¼º
+	// IOCP Create
 	m_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 	if (0 == m_iocp)
 	{
-		cout << "IOCP »ý¼º ½ÇÆÐ\n";
+		cout << "IOCP Create Failed\n";
 		return E_FAIL;
 	}
 
@@ -146,39 +146,39 @@ HRESULT CMyServer::CreateServer(int iPort)
 	for (int i = 0; i < (int)si.dwNumberOfProcessors * 2; i++)
 		m_vecThreadWorker.push_back(thread(&CMyServer::ThreadWork, this, nullptr));
 
-	// listen ¼ÒÄÏ »ý¼º
+	// listen Socket Init Failed
 	m_listenSock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
 	if (INVALID_SOCKET == m_listenSock)
 	{
-		cout << "LISTEN SOCKET »ý¼º ½ÇÆÐ!\n";
+		cout << "LISTEN SOCKET INIT FAILED!\n";
 		return E_FAIL;
 	}
 
-	// ¼ÒÄÏ ±¸Á¶Ã¼ ¼³Á¤
+	// ì†Œì¼“ êµ¬ì¡°ì²´ ì´ˆê¸°í™”
 	SOCKADDR_IN addr = { 0 };
 	addr.sin_family = AF_INET;
 	addr.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(iPort);
 
-	// ¹ÙÀÎµå
+	// listen ì†Œì¼“ì— ì†Œì¼“ ì •ë³´ ë°”ì¸ë“œ
 	if (SOCKET_ERROR == bind(m_listenSock, (SOCKADDR*)&addr, sizeof(addr)))
 	{
-		cout << "BIND ½ÇÆÐ!\n";
+		cout << "BIND Failed!\n";
 		return E_FAIL;
 	}
 
-	// ¿¬°á ´ë±â »óÅÂ
+	// ì—°ê²° ëŒ€ê¸° ìƒíƒœ ì¤€ë¹„
 	if (SOCKET_ERROR == listen(m_listenSock, 5))
 	{
-		cout << "¿¬°á ´ë±â ½ÇÆÐ!\n";
+		cout << "Listen Failed!\n";
 		return E_FAIL;
 	}
 
-	// ¿¬°á ¿äÃ» ¾²·¹µå °¡µ¿
+	// Accept Thread Create
 	m_bAcceptThread = true;
 	m_threadApt = thread(&CMyServer::ThreadAccept, this, nullptr);
 
-	// IP ¾ò¾î¿À±â
+	// Servers IP ê¸°ë¡
 	GetIP();
 
 	return S_OK;
@@ -186,7 +186,7 @@ HRESULT CMyServer::CreateServer(int iPort)
 
 HRESULT CMyServer::ReleaseServer()
 {
-	// Å¬¶óÀÌ¾ðÆ® Á¢¼Ó ÇØÁ¦
+	// Client Socket Release
 	for (int i = 0; i < m_vecClient.size(); ++i)
 	{
 		EnterCriticalSection(&m_cs);
@@ -198,33 +198,36 @@ HRESULT CMyServer::ReleaseServer()
 	m_vecClient.clear();
 	vector<USERINFO*>().swap(m_vecClient);
 
-	// WorkerThread Á¾·á
+	// WorkerThread Release
 	m_bWorkerThread = false;
 	CloseHandle(m_iocp);
 
 	for (int i = 0; i < m_vecThreadWorker.size(); ++i)
-		m_vecThreadWorker[i].join();
+	{
+		if (m_vecThreadWorker[i].joinable())
+			m_vecThreadWorker[i].join();
+	}
 	m_vecThreadWorker.clear();
 	vector<thread>().swap(m_vecThreadWorker);
 
-	// AcceptThread Á¾·á
+	// AcceptThread Release
 	m_bAcceptThread = false;
 	shutdown(m_listenSock, SD_BOTH);
-
 	closesocket(m_listenSock);
+
 	if (m_threadApt.joinable())
 		m_threadApt.join();
 
-	// Critical_Section ÇØÁ¦
+	// Critical_Section Delete
 	DeleteCriticalSection(&m_cs);
 	WSACleanup();
 
-	// ImGui ÇØÁ¦
+	// ImGui Release
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
-	// D3D ÇØÁ¦
+	// D3D Release
 	m_pDeviceContext->Release();
 	m_pDevice->Release();
 
@@ -330,7 +333,7 @@ bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 			&dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
 		{
 			if (WSA_IO_PENDING != WSAGetLastError())
-				cout << "SEND PENDING ½ÇÆÐ\n";
+				cout << "SEND PENDING ï¿½ï¿½ï¿½ï¿½\n";
 		}
 	}
 	LeaveCriticalSection(&m_cs);
@@ -340,7 +343,7 @@ bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 
 void CMyServer::MainWindow()
 {
-	if (ImGui::Begin((const char*)u8"À¯Àú Á¤º¸Ã¢"))
+	if (ImGui::Begin((const char*)u8"ìœ ì € ì •ë³´ì°½"))
 	{
 		if (ImGui::BeginTable("split", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders))
 		{
@@ -432,19 +435,19 @@ void CMyServer::Render()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	for (int i = 0; i < (int)m_vecThreadWorker.size(); ++i)
+	/*for (int i = 0; i < (int)m_vecThreadWorker.size(); ++i)
 	{
 		if (false == m_vecThreadWorker[i].joinable())
 		{
-			cout << i << "¹ø ¾²·¹µå Á¤Áö..\n";
+			cout << i << "ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½..\n";
 		}
-	}
+	}*/
 
 	if (ImGui::Begin("MyServer"))
 	{
 		int iFlag = 0;
 		float fDragSpeed = 1.f;
-		// ¼­¹ö°¡ °¡µ¿½Ã Æ÷Æ®¹øÈ£ º¯°æ X
+		// ì„œë²„ ê°€ë™ì‹œ ë¹„í™œì„±í™”
 		if (m_bRun)
 		{
 			iFlag = ImGuiSliderFlags_NoInput;
@@ -460,23 +463,23 @@ void CMyServer::Render()
 		ImGui::DragInt("##", &m_iPort, fDragSpeed, 0, 0, "%d", iFlag);
 		ImGui::PopItemWidth();
 
-		if (ImGui::Button((const char*)u8"¼­¹ö °¡µ¿", ImVec2(150.f, 50.f)))
+		if (ImGui::Button((const char*)u8"ì„œë²„ ê°€ë™", ImVec2(150.f, 50.f)))
 		{
 			if (S_OK == CreateServer(m_iPort))
 			{
 				m_bRun = true;
-				cout << "¼­¹ö °¡µ¿ ½ÇÇà\n";
+				cout << "ì„œë²„ ê°€ë™ ì‹œìž‘\n";
 			}
 		}
 		ImGui::SameLine();
-		if (ImGui::Button((const char*)u8"¼­¹ö Á¾·á", ImVec2(150.f, 50.f)))
+		if (ImGui::Button((const char*)u8"ì„œë²„ ì¢…ë£Œ", ImVec2(150.f, 50.f)))
 		{
-			cout << "¼­¹ö Á¾·á ½ÇÇà\n";
+			cout << "ì„œë²„ ê°€ë™ ì¢…ë£Œ\n";
 			m_bRun = false;
 			m_bAlive = false;
 		}
 
-		// À¯Àú Á¤º¸Ã¢
+		// ìœ ì € ì •ë³´ì°½
 		if (m_bRun)
 			MainWindow();
 
