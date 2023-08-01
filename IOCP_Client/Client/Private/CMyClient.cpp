@@ -21,7 +21,7 @@ HRESULT CMyClient::ConnectServer(const char* szName)
 	WSAData wsadata;
 	if (0 != WSAStartup(MAKEWORD(2, 2), &wsadata))
 	{
-		cout << "���� �ʱ�ȭ ����!\n";
+		cout << "WINSOCK INIT FAILED!\n";
 		return E_FAIL;
 	}
 
@@ -34,7 +34,7 @@ HRESULT CMyClient::ConnectServer(const char* szName)
 
 	if (SOCKET_ERROR == connect(m_sock, (SOCKADDR*)&addr, sizeof(addr)))
 	{
-		cout << "������ ������ �� �����ϴ�!\n";
+		cout << "Connnect Server Failed!\n";
 		return E_FAIL;
 	}
 
@@ -65,7 +65,7 @@ void CMyClient::Init_Imgui()
 	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 	ImGuiStyle& style = ImGui::GetStyle();
 
-	// ���߿� ��ư ��Ȱ��ȭ �Ǵ��� ����� �״�� �����Ϸ��� ����
+	// 서버 접속 버튼 비활성화 상태일때 알파값 그대로 유지
 	style.DisabledAlpha = 1.f;
 
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
@@ -87,23 +87,23 @@ void CMyClient::Render()
 
 	if (ImGui::Begin("MENU"))
 	{
-		// ���� ������ ������ ���°� �ƴҶ��� Ȱ��ȭ
+		// 서버에 접속 중이라면 버튼 비활성화
 		ImGui::BeginDisabled(m_bConnectEnable);
 		JoinServer();
 		ImGui::EndDisabled();
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(u8"���� ����", ImVec2(150.f, 50.f)))
+		if (ImGui::Button(u8"서버 종료", ImVec2(150.f, 50.f)))
 		{
-			cout << "���� ���� ����\n";
+			cout << "접속 종료\n";
 			m_bAlive = false;
 			m_bConnectEnable = false;
 		}
 	}
 	ImGui::End();
 
-	// ä�� GUI Render
+	// Client GUI Render
 	if (m_bConnectEnable)
 		ShowChat();
 
@@ -122,7 +122,7 @@ void CMyClient::Render()
 
 void CMyClient::ShowChat()
 {
-	if (ImGui::Begin(u8"ä��"))
+	if (ImGui::Begin(u8"채팅"))
 	{
 		ImGui::BeginChild("Chatting", ImVec2(0, -25), true, 0);
 
@@ -157,7 +157,7 @@ void CMyClient::ShowChat()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button(u8"������", ImVec2(50, 25)))
+		if (ImGui::Button(u8"보내기", ImVec2(50, 25)))
 		{
 			if (strcmp("", m_szInputBuf))
 			{
@@ -253,10 +253,10 @@ void CMyClient::ConnectFail()
 	style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
 	if (ImGui::BeginPopupModal("ConnectFail", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		TextCenter(u8"ä�ü��� ���� ����!");
-		WindowCenter(u8"Ȯ��##2");
+		TextCenter(u8"서버에 접속할 수 없습니다!");
+		WindowCenter(u8"확인##2");
 
-		if (ImGui::Button(u8"Ȯ��##2", ImVec2(50.f, 25.f)))
+		if (ImGui::Button(u8"확인##2", ImVec2(50.f, 25.f)))
 		{
 			m_bConnectFail = false;
 			ImGui::CloseCurrentPopup();
@@ -268,21 +268,21 @@ void CMyClient::ConnectFail()
 
 void CMyClient::JoinServer()
 {
-	if (ImGui::Button(u8"ä�ü��� ����", ImVec2(150.f, 50.f)))
+	if (ImGui::Button(u8"서버 접속", ImVec2(150.f, 50.f)))
 		ImGui::OpenPopup("NickName");
 
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 	ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 	if (ImGui::BeginPopupModal("NickName", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		TextCenter(u8"�г����� �������ּ���!");
+		TextCenter(u8"닉네임을 설정해주세요!");
 		if (ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName), ImGuiInputTextFlags_EnterReturnsTrue))
 			m_bCheck = true;
 
-		WindowCenter(u8"Ȯ��##1");
-		if (ImGui::Button(u8"Ȯ��##1", ImVec2(50.f, 25.f)) || m_bCheck)
+		WindowCenter(u8"확인##1");
+		if (ImGui::Button(u8"확인##1", ImVec2(50.f, 25.f)) || m_bCheck)
 		{
-			// Connect �Լ� ȣ��
+			// Connect Server
 			if (S_OK == ConnectServer(m_szName))
 			{
 				ImGui::CloseCurrentPopup();
@@ -297,7 +297,7 @@ void CMyClient::JoinServer()
 		ImGui::EndPopup();
 	}
 
-	// ���� ���� �˾�â
+	// Connect Server Failed
 	if (m_bConnectFail)
 	{
 		ConnectFail();
