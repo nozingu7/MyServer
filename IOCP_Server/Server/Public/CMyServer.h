@@ -48,6 +48,7 @@ private:
 	CRITICAL_SECTION m_cs;
 	OVERLAPPED sendOverlap;
 	OVERLAPPED recvOverlap;
+	class CMyDB* m_pDB = nullptr;
 
 private:
 	ID3D11Device* m_pDevice = nullptr;

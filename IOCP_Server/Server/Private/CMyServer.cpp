@@ -1,4 +1,5 @@
 #include "CMyServer.h"
+#include "CMyDB.h"
 
 CMyServer::CMyServer(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 	:m_pDevice(pDevice), m_pDeviceContext(pContext)
@@ -8,6 +9,8 @@ CMyServer::CMyServer(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 	memset(m_szIP, 0, sizeof(m_szIP));
 	m_iPort = 15000;
 	m_vecClient.reserve(100);
+
+	m_pDB = new CMyDB;
 }
 
 CMyServer::~CMyServer()
@@ -36,7 +39,98 @@ void CMyServer::ThreadWork(void* pData)
 
 				if (RECV == myOverlap->state)
 				{
-					SendAll(*userInfo, (int)dwSize);
+					char* pBuf = userInfo->szRecvBuf;
+					MsgType* pType = (MsgType*)pBuf;
+					pBuf += sizeof(MsgType);
+
+					if (MsgType::LOGIN == *pType)
+					{
+						LOGIN_HEADER_TO_SERVER* pHeader = (LOGIN_HEADER_TO_SERVER*)pBuf;
+						int iIDLen = pHeader->iIDLen;
+						int iPasswordLen = pHeader->iPasswordLen;
+						char szID[20];
+						char szPassword[20];
+
+						pBuf += sizeof(LOGIN_HEADER_TO_SERVER);
+						memcpy(szID, pBuf, iIDLen);
+						pBuf += iIDLen;
+						memcpy(szPassword, pBuf, iPasswordLen);
+
+						// 정보가 일치한다면 로그인 시도한 클라이언트에게만 메세지 보내기
+						if (m_pDB->LoginDataCheck(szID, szPassword))
+						{
+							BYTE* pLoginBuf = new BYTE[sizeof(PACKET)];
+							memset(pLoginBuf, 0, sizeof(PACKET));
+							int len = 0;
+							
+							MsgType* pType = (MsgType*)pLoginBuf;
+							*pType = MsgType::LOGIN;
+							len += sizeof(MsgType);
+
+							LOGIN_HEADER_TO_CLIENT* pHeaderToClient = (LoginHeaderToClient*)(pLoginBuf + len);
+							pHeaderToClient->bSuccess = true;
+							char szNickName[20];
+							strcpy(szNickName, m_pDB->GetNickName(szID));
+							pHeaderToClient->iNickNameLen = strlen(szNickName) + 1;
+							len += sizeof(LOGIN_HEADER_TO_CLIENT);
+
+							char* pMsg = (char*)(pLoginBuf + len);
+							memcpy(pMsg, szNickName, pHeaderToClient->iNickNameLen);
+							len += pHeaderToClient->iNickNameLen;
+
+							userInfo->SendOverlap.wsaBuf.buf = (char*)pLoginBuf;
+							userInfo->SendOverlap.wsaBuf.len = len;
+							userInfo->SendOverlap.state = SEND;
+
+							DWORD dwByte = 0;
+							DWORD dwFlag = 0;
+
+							if (WSASend(userInfo->sock, &userInfo->SendOverlap.wsaBuf, 1,
+								&dwByte, dwFlag, &userInfo->SendOverlap.overlap, NULL))
+							{
+								if (WSA_IO_PENDING != WSAGetLastError())
+									cout << "SEND PENDING FAILED\n";
+							}
+						}
+						// 일치하지 않는다면 로그인 실패 시그널 보내기
+						else
+						{
+							BYTE* pLoginBuf = new BYTE[1024];
+
+							MsgType* pType = new MsgType;
+							*pType = MsgType::LOGIN;
+							memcpy(pLoginBuf, pType, sizeof(MsgType));
+							pLoginBuf += sizeof(MsgType);
+
+							LOGIN_HEADER_TO_CLIENT* pHeaderToClient = new LOGIN_HEADER_TO_CLIENT;
+							memset(&pHeaderToClient, 0, sizeof(LOGIN_HEADER_TO_CLIENT));
+							pHeaderToClient->bSuccess = false;
+							memcpy(pLoginBuf, pHeaderToClient, sizeof(LOGIN_HEADER_TO_CLIENT));
+
+							userInfo->SendOverlap.wsaBuf.buf = (char*)pLoginBuf;
+							userInfo->SendOverlap.wsaBuf.len = strlen((char*)pLoginBuf);
+							userInfo->SendOverlap.state = SEND;
+
+							DWORD dwByte = 0;
+							DWORD dwFlag = 0;
+
+							if (WSASend(userInfo->sock, &userInfo->SendOverlap.wsaBuf, 1,
+								&dwByte, dwFlag, &userInfo->SendOverlap.overlap, NULL))
+							{
+								if (WSA_IO_PENDING != WSAGetLastError())
+									cout << "SEND PENDING FAILED\n";
+							}
+						}
+					}
+					else if (MsgType::CHATTING == *pType)
+					{
+						SendAll(*userInfo, (int)dwSize);
+					}
+					else
+					{
+						// 회원가입 로직 처리
+					}
+					
 					memset(userInfo->szRecvBuf, 0, sizeof(userInfo->szRecvBuf));
 
 					dwSize = 0;
@@ -256,7 +350,7 @@ HRESULT CMyServer::RemoveClient(SOCKET sock)
 USERINFO* CMyServer::SetUpUserData(SOCKET sock, SOCKADDR_IN addr)
 {
 	char msg[20] = { 0 };
-	recv(sock, msg, sizeof(msg), 0);
+	//recv(sock, msg, sizeof(msg), 0);
 
 	USERINFO* userInfo = new USERINFO;
 	ZeroMemory(userInfo, sizeof(USERINFO));
@@ -304,12 +398,17 @@ void CMyServer::Init_Imgui()
 bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 {
 	char* pBuf = userInfo.szRecvBuf;
-	PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+	int len = 0;
+	MsgType* pType = (MsgType*)pBuf;
+	len += sizeof(MsgType);
+	
+	PACKETHEADER* pHeader = (PACKETHEADER*)(pBuf + len);
 	char szName[20] = { 0 };
 	char szMsg[256] = { 0 };
-	memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
-	pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
-	memcpy(szMsg, pBuf, pHeader->iMsgLen);
+	len += sizeof(PACKETHEADER);
+	memcpy(szName, pBuf + len, pHeader->iNameLen);
+	len += pHeader->iNameLen;
+	memcpy(szMsg, pBuf + len, pHeader->iMsgLen);
 
 	strcpy(szName, UTF8ToMultiByte(szName));
 	strcpy(szMsg, UTF8ToMultiByte(szMsg));
@@ -333,7 +432,7 @@ bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 			&dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
 		{
 			if (WSA_IO_PENDING != WSAGetLastError())
-				cout << "SEND PENDING ����\n";
+				cout << "SEND PENDING FAILED\n";
 		}
 	}
 	LeaveCriticalSection(&m_cs);
@@ -434,14 +533,6 @@ void CMyServer::Render()
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-
-	/*for (int i = 0; i < (int)m_vecThreadWorker.size(); ++i)
-	{
-		if (false == m_vecThreadWorker[i].joinable())
-		{
-			cout << i << "�� ������ ����..\n";
-		}
-	}*/
 
 	if (ImGui::Begin("MyServer"))
 	{

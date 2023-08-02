@@ -16,7 +16,7 @@ CMyClient::~CMyClient()
 	Release();
 }
 
-HRESULT CMyClient::ConnectServer(const char* szName)
+HRESULT CMyClient::ConnectServer()
 {
 	WSAData wsadata;
 	if (0 != WSAStartup(MAKEWORD(2, 2), &wsadata))
@@ -38,7 +38,7 @@ HRESULT CMyClient::ConnectServer(const char* szName)
 		return E_FAIL;
 	}
 
-	send(m_sock, szName, (int)strlen(szName) + 1, 0);
+	//send(m_sock, szName, (int)strlen(szName) + 1, 0);
 
 	m_bConnectEnable = true;
 
@@ -96,7 +96,6 @@ void CMyClient::Render()
 
 		if (ImGui::Button(u8"서버 종료", ImVec2(150.f, 50.f)))
 		{
-			cout << "접속 종료\n";
 			m_bAlive = false;
 			m_bConnectEnable = false;
 		}
@@ -105,6 +104,10 @@ void CMyClient::Render()
 
 	// Client GUI Render
 	if (m_bConnectEnable)
+		LoginWindow();
+
+	// 로그인 성공했을 경우 채팅 접속
+	if (m_bChatting)
 		ShowChat();
 
 	ImGui::Render();
@@ -138,17 +141,23 @@ void CMyClient::ShowChat()
 			{
 				BYTE* pBuf = new BYTE[sizeof(PACKET)];
 				memset(pBuf, 0, sizeof(PACKET));
+				int len = 0;
 
-				PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+				MsgType* pType = (MsgType*)pBuf;
+				*pType = MsgType::CHATTING;
+				len += sizeof(MsgType);
+
+				PACKETHEADER* pHeader = (PACKETHEADER*)(pBuf + len);
 				pHeader->iNameLen = (int)strlen(m_szName) + 1;
 				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
+				len += sizeof(PACKETHEADER);
 
-				char* pMsg = (char*)(pBuf + sizeof(PACKETHEADER));
+				char* pMsg = (char*)(pBuf + len);
 				memcpy(pMsg, m_szName, pHeader->iNameLen);
 				pMsg += pHeader->iNameLen;
 				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
+				len += pHeader->iNameLen + pHeader->iMsgLen;
 
-				int len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
 				send(m_sock, (char*)pBuf, len, 0);
 				delete[] pBuf;
 				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
@@ -163,17 +172,23 @@ void CMyClient::ShowChat()
 			{
 				BYTE* pBuf = new BYTE[sizeof(PACKET)];
 				memset(pBuf, 0, sizeof(PACKET));
+				int len = 0;
 
-				PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+				MsgType* pType = (MsgType*)pBuf;
+				*pType = MsgType::CHATTING;
+				len += sizeof(MsgType);
+
+				PACKETHEADER* pHeader = (PACKETHEADER*)(pBuf + len);
 				pHeader->iNameLen = (int)strlen(m_szName) + 1;
 				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
+				len += sizeof(PACKETHEADER);
 
-				char* pMsg = (char*)(pBuf + sizeof(PACKETHEADER));
+				char* pMsg = (char*)(pBuf + len);
 				memcpy(pMsg, m_szName, pHeader->iNameLen);
 				pMsg += pHeader->iNameLen;
 				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
+				len += pHeader->iNameLen + pHeader->iMsgLen;
 
-				int len = sizeof(PACKETHEADER) + pHeader->iNameLen + pHeader->iMsgLen;
 				send(m_sock, (char*)pBuf, len, 0);
 				delete[] pBuf;
 				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
@@ -185,15 +200,7 @@ void CMyClient::ShowChat()
 
 void CMyClient::Release()
 {
-	shutdown(m_sock, SD_BOTH);
-	closesocket(m_sock);
-	if (m_thread.joinable())
-		m_thread.join();
-
-	for (int i = 0; i < m_vecInfo.size(); ++i)
-		delete m_vecInfo[i];
-	m_vecInfo.clear();
-	vector<USERINFO*>().swap(m_vecInfo);
+	Disconnect();
 
 	WSACleanup();
 
@@ -212,15 +219,32 @@ void CMyClient::ThreadRecv(void* pData)
 
 	while (0 < recv(m_sock, msg, len, 0))
 	{
-		PACKETHEADER* pHeader = (PACKETHEADER*)msg;
-		int iNameLen = pHeader->iNameLen;
-		int iMsgLen = pHeader->iMsgLen;
-		char* pBuf = msg + sizeof(PACKETHEADER);
+		// 받은 패킷정보로 로그인인지, 메세진지에 따라 분기로 나눠서 처리
+		char* pBuf = msg;
+		MsgType* pType = (MsgType*)pBuf;
+		pBuf += sizeof(MsgType);
 
-		UserInfo* pInfo = new USERINFO;
-		memcpy(pInfo->szName, pBuf, iNameLen);
-		memcpy(pInfo->szBuf, pBuf + iNameLen, iMsgLen);
-		m_vecInfo.push_back(pInfo);
+		if (MsgType::LOGIN == *pType)
+		{
+			LoginProgress(pBuf);
+		}
+		else if (MsgType::CHATTING == *pType)
+		{
+			PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
+			int iNameLen = pHeader->iNameLen;
+			int iMsgLen = pHeader->iMsgLen;
+			pBuf += sizeof(PACKETHEADER);
+
+			UserInfo* pInfo = new USERINFO;
+			memcpy(pInfo->szName, pBuf, iNameLen);
+			memcpy(pInfo->szBuf, pBuf + iNameLen, iMsgLen);
+			m_vecInfo.push_back(pInfo);
+		}
+		else
+		{
+			// 회원가입처리
+		}
+
 		memset(msg, 0, len);
 	}
 }
@@ -269,33 +293,37 @@ void CMyClient::ConnectFail()
 void CMyClient::JoinServer()
 {
 	if (ImGui::Button(u8"서버 접속", ImVec2(150.f, 50.f)))
-		ImGui::OpenPopup("NickName");
-
-	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-	ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	if (ImGui::BeginPopupModal("NickName", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		TextCenter(u8"닉네임을 설정해주세요!");
-		if (ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName), ImGuiInputTextFlags_EnterReturnsTrue))
-			m_bCheck = true;
-
-		WindowCenter(u8"확인##1");
-		if (ImGui::Button(u8"확인##1", ImVec2(50.f, 25.f)) || m_bCheck)
-		{
-			// Connect Server
-			if (S_OK == ConnectServer(m_szName))
-			{
-				ImGui::CloseCurrentPopup();
-			}
-			else
-			{
-				ImGui::CloseCurrentPopup();
-				m_bConnectFail = true;
-			}
-			m_bCheck = false;
-		}
-		ImGui::EndPopup();
+		if (E_FAIL == ConnectServer())
+			m_bConnectFail = true;
+		//ImGui::OpenPopup("NickName");
 	}
+
+	//ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+	//ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+	//if (ImGui::BeginPopupModal("NickName", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+	//{
+	//	TextCenter(u8"닉네임을 설정해주세요!");
+	//	if (ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName), ImGuiInputTextFlags_EnterReturnsTrue))
+	//		m_bCheck = true;
+
+	//	WindowCenter(u8"확인##1");
+	//	if (ImGui::Button(u8"확인##1", ImVec2(50.f, 25.f)) || m_bCheck)
+	//	{
+	//		// Connect Server
+	//		if (S_OK == ConnectServer())
+	//		{
+	//			ImGui::CloseCurrentPopup();
+	//		}
+	//		else
+	//		{
+	//			ImGui::CloseCurrentPopup();
+	//			m_bConnectFail = true;
+	//		}
+	//		m_bCheck = false;
+	//	}
+	//	ImGui::EndPopup();
+	//}
 
 	// Connect Server Failed
 	if (m_bConnectFail)
@@ -308,3 +336,108 @@ bool CMyClient::Alive()
 {
 	return m_bAlive;
 }
+
+void CMyClient::LoginWindow()
+{
+	if (ImGui::Begin(u8"로그인"))
+	{
+		if (ImGui::BeginChild(u8"세부창", ImVec2(400, 200)))
+		{
+			static char szID[256] = "";
+			static char szPW[256] = "";
+			ImGui::Text("아이디 : ");
+			ImGui::SameLine();
+			ImGui::InputText("##1", szID, sizeof(szID));
+			ImGui::Text("비 번 : ");
+			ImGui::SameLine();
+			ImGui::InputText("##2", szPW, sizeof(szPW));
+
+			if (ImGui::Button(u8"로그인", ImVec2(100, 50)))
+			{
+				BYTE* pBuf = new BYTE[sizeof(PACKET)];
+				memset(pBuf, 0, sizeof(PACKET));
+				int len = 0;
+
+				MsgType* pType = (MsgType*)pBuf;
+				*pType = MsgType::LOGIN;
+				len += sizeof(MsgType);
+
+				LOGIN_HEADER_TO_SERVER* pLogin = (LOGIN_HEADER_TO_SERVER*)(pBuf + len);
+				pLogin->iIDLen = strlen(szID) + 1;
+				pLogin->iPasswordLen = strlen(szPW) + 1;
+				len += sizeof(LOGIN_HEADER_TO_SERVER);
+
+				char* pMsg = (char*)(pBuf + len);
+				memcpy(pMsg, szID, pLogin->iIDLen);
+				pMsg += pLogin->iIDLen;
+				memcpy(pMsg, szPW, pLogin->iPasswordLen);
+
+				len += pLogin->iIDLen + pLogin->iPasswordLen;
+
+				if (SOCKET_ERROR == send(m_sock, (char*)pBuf, len, 0))
+				{
+					cout << "SEND FAILED\n";
+				}
+
+				delete[] pBuf;
+				memset(szID, 0, sizeof(szID));
+				memset(szPW, 0, sizeof(szPW));
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"취소", ImVec2(100, 50)))
+			{
+				Disconnect();
+
+				memset(szID, 0, sizeof(szID));
+				memset(szPW, 0, sizeof(szPW));
+			}
+
+			if (ImGui::Button(u8"회원가입", ImVec2(100, 50)))
+			{
+
+			}
+
+			ImGui::EndChild();
+		}
+	}
+	ImGui::End();
+}
+
+void CMyClient::LoginProgress(char* pBuffer)
+{
+	char* pBuf = pBuffer;
+	LOGIN_HEADER_TO_CLIENT* pHeader = (LOGIN_HEADER_TO_CLIENT*)pBuf;
+
+	if (pHeader->bSuccess)
+	{
+		int iNickNameLen = pHeader->iNickNameLen;
+		pBuf += sizeof(LOGIN_HEADER_TO_CLIENT);
+		memcpy(m_szName, pBuf, iNickNameLen);
+		m_bChatting = true;
+		m_bConnectEnable = false;
+	}
+	else
+	{
+		// 로그인 실패
+		Disconnect();
+	}
+}
+
+void CMyClient::Disconnect()
+{
+	m_bConnectEnable = false;
+
+	shutdown(m_sock, SD_BOTH);
+	closesocket(m_sock);
+	if (m_thread.joinable())
+		m_thread.join();
+
+	if (!m_vecInfo.empty())
+	{
+		for (int i = 0; i < m_vecInfo.size(); ++i)
+			delete m_vecInfo[i];
+		m_vecInfo.clear();
+		vector<USERINFO*>().swap(m_vecInfo);
+	}
+}
+

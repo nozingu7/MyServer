@@ -9,7 +9,10 @@ public:
 	~CMyClient();
 
 private:
-	HRESULT ConnectServer(const char* szName);
+	HRESULT ConnectServer();
+
+public:
+	bool Alive();
 
 public:
 	void Init_Imgui();
@@ -21,7 +24,12 @@ public:
 	void WindowCenter(const char* str);
 	void ConnectFail();
 	void JoinServer();
-	bool Alive();
+	void LoginWindow();
+
+public:
+	void LoginProgress(char* pBuffer);
+	void Disconnect();
+
 
 private:
 	SOCKET m_sock;
@@ -33,6 +41,7 @@ private:
 	bool m_bConnectFail = false;
 	bool m_bAlive = true;
 	bool m_bCheck = false;
+	bool m_bChatting = false;
 
 private:
 	ID3D11Device* m_pDevice;

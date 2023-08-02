@@ -23,6 +23,9 @@
     <Filter Include="소스 파일\Server\MyServer">
       <UniqueIdentifier>{e5cbd40b-5165-4ae8-922a-53be7aaa3088}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Server\DB">
+      <UniqueIdentifier>{60be5ce4-67ef-4c84-9d6b-b351efb14ded}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -73,6 +76,9 @@
     <ClInclude Include="..\Public\CMyServer.h">
       <Filter>소스 파일\Server\MyServer</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CMyDB.h">
+      <Filter>소스 파일\Server\DB</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Server.cpp">
@@ -104,6 +110,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\CMyServer.cpp">
       <Filter>소스 파일\Server\MyServer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CMyDB.cpp">
+      <Filter>소스 파일\Server\DB</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
