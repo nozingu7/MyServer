@@ -29,7 +29,7 @@ void CMyServer::ThreadWork(void* pData)
 	while (m_bWorkerThread)
 	{
 		bResult = GetQueuedCompletionStatus(m_iocp, &dwSize,
-					(PULONG_PTR)&userInfo, &overlap, INFINITE);
+			(PULONG_PTR)&userInfo, &overlap, INFINITE);
 
 		if (bResult)
 		{
@@ -45,6 +45,7 @@ void CMyServer::ThreadWork(void* pData)
 
 					if (MsgType::LOGIN == *pType)
 					{
+						#pragma region 로그인 처리
 						LOGIN_HEADER_TO_SERVER* pHeader = (LOGIN_HEADER_TO_SERVER*)pBuf;
 						int iIDLen = pHeader->iIDLen;
 						int iPasswordLen = pHeader->iPasswordLen;
@@ -56,81 +57,65 @@ void CMyServer::ThreadWork(void* pData)
 						pBuf += iIDLen;
 						memcpy(szPassword, pBuf, iPasswordLen);
 
-						// 정보가 일치한다면 로그인 시도한 클라이언트에게만 메세지 보내기
+						// 로그인 정보 확인
 						if (m_pDB->LoginDataCheck(szID, szPassword))
-						{
-							BYTE* pLoginBuf = new BYTE[sizeof(PACKET)];
-							memset(pLoginBuf, 0, sizeof(PACKET));
-							int len = 0;
-							
-							MsgType* pType = (MsgType*)pLoginBuf;
-							*pType = MsgType::LOGIN;
-							len += sizeof(MsgType);
-
-							LOGIN_HEADER_TO_CLIENT* pHeaderToClient = (LoginHeaderToClient*)(pLoginBuf + len);
-							pHeaderToClient->bSuccess = true;
-							char szNickName[20];
-							strcpy(szNickName, m_pDB->GetNickName(szID));
-							pHeaderToClient->iNickNameLen = strlen(szNickName) + 1;
-							len += sizeof(LOGIN_HEADER_TO_CLIENT);
-
-							char* pMsg = (char*)(pLoginBuf + len);
-							memcpy(pMsg, szNickName, pHeaderToClient->iNickNameLen);
-							len += pHeaderToClient->iNickNameLen;
-
-							userInfo->SendOverlap.wsaBuf.buf = (char*)pLoginBuf;
-							userInfo->SendOverlap.wsaBuf.len = len;
-							userInfo->SendOverlap.state = SEND;
-
-							DWORD dwByte = 0;
-							DWORD dwFlag = 0;
-
-							if (WSASend(userInfo->sock, &userInfo->SendOverlap.wsaBuf, 1,
-								&dwByte, dwFlag, &userInfo->SendOverlap.overlap, NULL))
-							{
-								if (WSA_IO_PENDING != WSAGetLastError())
-									cout << "SEND PENDING FAILED\n";
-							}
-						}
-						// 일치하지 않는다면 로그인 실패 시그널 보내기
+							LoginDataSend(szID, *userInfo, true);
 						else
-						{
-							BYTE* pLoginBuf = new BYTE[1024];
-
-							MsgType* pType = new MsgType;
-							*pType = MsgType::LOGIN;
-							memcpy(pLoginBuf, pType, sizeof(MsgType));
-							pLoginBuf += sizeof(MsgType);
-
-							LOGIN_HEADER_TO_CLIENT* pHeaderToClient = new LOGIN_HEADER_TO_CLIENT;
-							memset(&pHeaderToClient, 0, sizeof(LOGIN_HEADER_TO_CLIENT));
-							pHeaderToClient->bSuccess = false;
-							memcpy(pLoginBuf, pHeaderToClient, sizeof(LOGIN_HEADER_TO_CLIENT));
-
-							userInfo->SendOverlap.wsaBuf.buf = (char*)pLoginBuf;
-							userInfo->SendOverlap.wsaBuf.len = strlen((char*)pLoginBuf);
-							userInfo->SendOverlap.state = SEND;
-
-							DWORD dwByte = 0;
-							DWORD dwFlag = 0;
-
-							if (WSASend(userInfo->sock, &userInfo->SendOverlap.wsaBuf, 1,
-								&dwByte, dwFlag, &userInfo->SendOverlap.overlap, NULL))
-							{
-								if (WSA_IO_PENDING != WSAGetLastError())
-									cout << "SEND PENDING FAILED\n";
-							}
-						}
+							LoginDataSend(szID, *userInfo, false);
+						#pragma endregion
 					}
 					else if (MsgType::CHATTING == *pType)
 					{
+						#pragma region 메세지 전송
+						// 모든 클라이언트에게 메세지 전송
 						SendAll(*userInfo, (int)dwSize);
+						#pragma endregion
+					}
+					else if (MsgType::SIGNUP == *pType)
+					{
+						#pragma region 회원가입 처리
+						// 회원가입 처리
+						bool bSuccess = false;
+
+						if (SignupCheck(pBuf, *userInfo))
+						{
+							cout << "아이디 생성 성공!\n";
+							bSuccess = true;
+						}
+						else
+							cout << "아이디 생성 실패!\n";
+
+						SignupDataSend(*userInfo, bSuccess);
+#pragma endregion
 					}
 					else
 					{
-						// 회원가입 로직 처리
+						#pragma region 아이디, 닉네임 중복 처리
+						// 아이디, 닉네임 중복 확인
+						DUPLICATE_HEADER* pHeader = (DUPLICATE_HEADER*)pBuf;
+						int iStrLen = pHeader->iNickNameLen;
+						char szStr[20] = "";
+
+						pBuf += sizeof(DUPLICATE_HEADER);
+						memcpy(szStr, pBuf, pHeader->iNickNameLen);
+
+						DuType eType = DuType::NICKNAME;
+						if (DuType::ID == pHeader->eType)
+							eType = DuType::ID;
+						bool bSuccess = false;
+
+						if (m_pDB->DBDubplicateCheck(szStr, eType))
+						{
+							cout << "중복 없음!\n";
+							bSuccess = true;
+						}
+						else
+							cout << "중복 있음!\n";
+
+						DuplicateDataSend(*userInfo, bSuccess, eType);
+#pragma endregion
 					}
-					
+
 					memset(userInfo->szRecvBuf, 0, sizeof(userInfo->szRecvBuf));
 
 					dwSize = 0;
@@ -148,18 +133,7 @@ void CMyServer::ThreadWork(void* pData)
 				}
 				else if (SEND == myOverlap->state)
 				{
-					/*char* pBuf = userInfo->szSendBuf;
-					PACKETHEADER* pHeader = (PACKETHEADER*)pBuf;
-					char szName[20] = { 0 };
-					char szMsg[256] = { 0 };
-					memcpy(szName, pBuf + sizeof(PACKETHEADER), pHeader->iNameLen);
-					pBuf += sizeof(PACKETHEADER) + pHeader->iNameLen;
-					memcpy(szMsg, pBuf, pHeader->iMsgLen);
-
-					strcpy(szName, UTF8ToMultiByte(szName));
-					strcpy(szMsg, UTF8ToMultiByte(szMsg));
-
-					cout << "Message - " << szName << " : " << szMsg << '\n';*/
+					// SEND
 				}
 			}
 			else
@@ -312,6 +286,8 @@ HRESULT CMyServer::ReleaseServer()
 	if (m_threadApt.joinable())
 		m_threadApt.join();
 
+	delete m_pDB;
+
 	// Critical_Section Delete
 	DeleteCriticalSection(&m_cs);
 	WSACleanup();
@@ -401,7 +377,7 @@ bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 	int len = 0;
 	MsgType* pType = (MsgType*)pBuf;
 	len += sizeof(MsgType);
-	
+
 	PACKETHEADER* pHeader = (PACKETHEADER*)(pBuf + len);
 	char szName[20] = { 0 };
 	char szMsg[256] = { 0 };
@@ -437,6 +413,42 @@ bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 	}
 	LeaveCriticalSection(&m_cs);
 
+	return true;
+}
+
+bool CMyServer::SignupCheck(char* szMsg, const USERINFO& info)
+{
+	char* pBuf = szMsg;
+	SIGNUP_HEADER* pHeader = (SIGNUP_HEADER*)pBuf;
+	int iIDLen = pHeader->iIDLen;
+	int iPassLen = pHeader->iPasswordLen;
+	int iNickLen = pHeader->iNickNameLen;
+	char szID[20] = "";
+	char szPass[20] = "";
+	char szNick[20] = "";
+
+	pBuf += sizeof(SIGNUP_HEADER);
+	memcpy(szID, pBuf, pHeader->iIDLen);
+	pBuf += pHeader->iIDLen;
+	memcpy(szPass, pBuf, pHeader->iPasswordLen);
+	pBuf += pHeader->iPasswordLen;
+	memcpy(szNick, pBuf, pHeader->iNickNameLen);
+
+	return m_pDB->SignUp(szID, szPass, szNick, info.szIP, info.iPort);
+}
+
+bool CMyServer::DuplicateCheack(char* szMsg)
+{
+	char* pBuf = szMsg;
+	DUPLICATE_HEADER* pHeader = (DUPLICATE_HEADER*)pBuf;
+	DuType eType = pHeader->eType;
+	int iStrLen = pHeader->iNickNameLen;
+	char szStr[20];
+
+	pBuf += sizeof(DUPLICATE_HEADER);
+	memcpy(szStr, pBuf, pHeader->iNickNameLen);
+
+	//return m_pDB->DBDubplicateCheck(szStr);
 	return true;
 }
 
@@ -526,6 +538,121 @@ char* CMyServer::MultiByteToUTF8(char* msg)
 	WideCharToMultiByte(CP_UTF8, 0, strUnicode, lstrlenW(strUnicode), strUtf8, nLen2, NULL, NULL);
 
 	return strUtf8;
+}
+
+void CMyServer::LoginDataSend(const char* szID, USERINFO& userInfo, bool bState)
+{
+	BYTE* pLoginBuf = new BYTE[sizeof(PACKET)];
+	memset(pLoginBuf, 0, sizeof(PACKET));
+	int len = 0;
+
+	MsgType* pType = (MsgType*)pLoginBuf;
+	*pType = MsgType::LOGIN;
+	len += sizeof(MsgType);
+
+	LOGIN_HEADER_TO_CLIENT* pHeaderToClient = (LoginHeaderToClient*)(pLoginBuf + len);
+	pHeaderToClient->bSuccess = bState;
+
+	if (bState)
+	{
+		char szNickName[20] = "";
+		strcpy(szNickName, m_pDB->GetNickName(szID));
+		pHeaderToClient->iNickNameLen = strlen(szNickName) + 1;
+		len += sizeof(LOGIN_HEADER_TO_CLIENT);
+
+		char* pMsg = (char*)(pLoginBuf + len);
+		memcpy(pMsg, szNickName, pHeaderToClient->iNickNameLen);
+		len += pHeaderToClient->iNickNameLen;
+
+		EnterCriticalSection(&m_cs);
+		for (int i = 0; i < (int)m_vecClient.size(); ++i)
+		{
+			if (userInfo.sock == m_vecClient[i]->sock)
+			{
+				strcpy(userInfo.szName, szNickName);
+				break;
+			}
+		}
+		LeaveCriticalSection(&m_cs);
+	}
+
+	userInfo.SendOverlap.wsaBuf.buf = (char*)pLoginBuf;
+	userInfo.SendOverlap.wsaBuf.len = len;
+	userInfo.SendOverlap.state = SEND;
+
+	DWORD dwByte = 0;
+	DWORD dwFlag = 0;
+
+	if (WSASend(userInfo.sock, &userInfo.SendOverlap.wsaBuf, 1,
+		&dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
+	{
+		if (WSA_IO_PENDING != WSAGetLastError())
+			cout << "SEND PENDING FAILED\n";
+	}
+
+	delete[] pLoginBuf;
+}
+
+void CMyServer::SignupDataSend(USERINFO& userInfo, bool bState)
+{
+	BYTE* pSignBuf = new BYTE[sizeof(PACKET)];
+	memset(pSignBuf, 0, sizeof(PACKET));
+	int len = 0;
+
+	MsgType* pType = (MsgType*)pSignBuf;
+	*pType = MsgType::SIGNUP;
+	len += sizeof(MsgType);
+
+	LOGIN_HEADER_TO_CLIENT* pHeaderToClient = (LOGIN_HEADER_TO_CLIENT*)(pSignBuf + len);
+	pHeaderToClient->bSuccess = bState;
+	len += sizeof(LOGIN_HEADER_TO_CLIENT);
+
+	userInfo.SendOverlap.wsaBuf.buf = (char*)pSignBuf;
+	userInfo.SendOverlap.wsaBuf.len = len;
+	userInfo.SendOverlap.state = SEND;
+
+	DWORD dwByte = 0;
+	DWORD dwFlag = 0;
+
+	if (WSASend(userInfo.sock, &userInfo.SendOverlap.wsaBuf, 1,
+		&dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
+	{
+		if (WSA_IO_PENDING != WSAGetLastError())
+			cout << "SEND PENDING FAILED\n";
+	}
+
+	delete[] pSignBuf;
+}
+
+void CMyServer::DuplicateDataSend(USERINFO& userInfo, bool bState, DuType etype)
+{
+	BYTE* pDuBuf = new BYTE[sizeof(PACKET)];
+	memset(pDuBuf, 0, sizeof(PACKET));
+	int len = 0;
+
+	MsgType* pType = (MsgType*)pDuBuf;
+	*pType = MsgType::DUPLICATECHECK;
+	len += sizeof(MsgType);
+	DUPLICATE_HEADER* pDuHeader = (DUPLICATE_HEADER*)(pDuBuf + len);
+	pDuHeader->eType = etype;
+	pDuHeader->bSuccess = bState;
+	len += sizeof(DUPLICATE_HEADER);
+
+	userInfo.SendOverlap.wsaBuf.buf = (char*)pDuBuf;
+	userInfo.SendOverlap.wsaBuf.len = len;
+	userInfo.SendOverlap.state = SEND;
+
+	DWORD dwByte = 0;
+	DWORD dwFlag = 0;
+
+	if (WSASend(userInfo.sock, &userInfo.SendOverlap.wsaBuf, 1,
+		&dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
+	{
+		if (WSA_IO_PENDING != WSAGetLastError())
+			cout << "SEND PENDING FAILED\n";
+	}
+
+	delete[] pDuBuf;
 }
 
 void CMyServer::Render()

@@ -4,7 +4,14 @@ enum MsgType
 {
 	CHATTING,
 	LOGIN,
-	SIGNUP
+	SIGNUP,
+	DUPLICATECHECK
+};
+
+enum DuType
+{
+	ID,
+	NICKNAME
 };
 
 typedef struct UserInfo
@@ -30,6 +37,20 @@ typedef struct LoginHeaderToClient
 	bool bSuccess;
 	int iNickNameLen;
 } LOGIN_HEADER_TO_CLIENT;
+
+typedef struct DuplicateHeader
+{
+	DuType eType;
+	bool bSuccess;
+	int iNickNameLen;
+} DUPLICATE_HEADER;
+
+typedef struct SignupHeader
+{
+	int iIDLen;
+	int iPasswordLen;
+	int iNickNameLen;
+} SIGNUP_HEADER;
 
 typedef struct Packet
 {

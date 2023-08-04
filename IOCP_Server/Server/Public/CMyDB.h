@@ -10,6 +10,8 @@ public:
 public:
 	bool LoginDataCheck(const char* szID, const char* szPassword);
 	char* GetNickName(const char* szID);
+	bool DBDubplicateCheck(const char* szStr, int iType);
+	bool SignUp(const char* szID, const char* szPass, const char* szNick, const char* szIP, const int iPort);
 
 public:
 	MYSQL* connection = nullptr;

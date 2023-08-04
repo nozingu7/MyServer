@@ -1,5 +1,4 @@
 #include "CMyDB.h"
-#include "..\Public\CMyDB.h"
 #include <iostream>
 using namespace std;
 
@@ -51,9 +50,7 @@ bool CMyDB::LoginDataCheck(const char* szID, const char* szPassword)
 	{
 		strcpy(dbID, row[0]);
 		strcpy(dbPassword, row[1]);
-		cout << "DB 정보" << '\t' << "접속 데이터\n";
-		cout << dbID << '\t' << szID << '\n';
-		cout << dbPassword << '\t' << szPassword << '\n';
+
 		if (!strcmp(dbID, szID) && !strcmp(dbPassword, szPassword))
 		{
 			cout << "로그인 승인\n";
@@ -68,6 +65,7 @@ bool CMyDB::LoginDataCheck(const char* szID, const char* szPassword)
 	else
 	{
 		// 유저 정보 없음
+		cout << "DB에 일치하는 유저 정보 없음!!\n";
 		bSuccess = false;
 	}
 
@@ -113,4 +111,75 @@ char* CMyDB::GetNickName(const char* szID)
 	mysql_close(connection);
 
 	return dbNickName;
+}
+
+bool CMyDB::DBDubplicateCheck(const char* szStr, int iType)
+{
+	char dbStr[20];
+	char queryStatement[256];
+	memset(dbStr, 0, sizeof(dbStr));
+	memset(queryStatement, 0, sizeof(queryStatement));
+
+	connection = mysql_init(NULL);
+	// 포트번호는 기본값 NULL = 3306
+	connection = mysql_real_connect(connection, DB_HOST, DB_USER, DB_PASS, DB_NAME, NULL, (char*)NULL, 0);
+
+	if (connection == nullptr)
+	{
+		return false;
+		cout << "DB Connection Failed\n";
+	}
+
+	if(0 == iType)
+		sprintf(queryStatement, "select id from idtable where id = \'%s\'", szStr);
+	else
+		sprintf(queryStatement, "select name from infotable where name = \'%s\'", szStr);
+	query_reslut = mysql_query(connection, queryStatement);
+
+	if (0 != query_reslut)
+		return false;
+
+	result = mysql_store_result(connection);
+
+	if (nullptr == result)
+		return false;
+
+	if (0 != (row = mysql_fetch_row(result)))
+	{
+		if (!strcmp(szStr, row[0]))
+			return false;
+	}
+
+	return true;
+}
+
+bool CMyDB::SignUp(const char* szID, const char* szPass, const char* szNick, const char* szIP, const int iPort)
+{
+	char queryStatement[256];
+	memset(queryStatement, 0, sizeof(queryStatement));
+
+	connection = mysql_init(NULL);
+	// 포트번호는 기본값 NULL = 3306
+	connection = mysql_real_connect(connection, DB_HOST, DB_USER, DB_PASS, DB_NAME, NULL, (char*)NULL, 0);
+
+	if (connection == nullptr)
+	{
+		return false;
+		cout << "DB Connection Failed\n";
+	}
+
+	sprintf(queryStatement, "insert into idtable values(NULL, \'%s\', \'%s\')", szID, szPass);
+	query_reslut = mysql_query(connection, queryStatement);
+
+	if (0 != query_reslut)
+		return false;
+
+	sprintf(queryStatement, "insert into infotable values(\'%s\', \'%s\', %d, NOW(), \
+		(select idx from idtable where id = \'%s\'))", szNick, szIP, iPort, szID);
+	query_reslut = mysql_query(connection, queryStatement);
+
+	if (0 != query_reslut)
+		return false;
+
+	return true;
 }

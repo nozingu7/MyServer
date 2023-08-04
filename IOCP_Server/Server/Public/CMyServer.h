@@ -17,11 +17,18 @@ public:
 
 public:
 	bool SendAll(USERINFO& userInfo, int iSize);
+	bool SignupCheck(char* szMsg, const USERINFO& info);
+	bool DuplicateCheack(char* szMsg);
 	void MainWindow();
 	bool isAlive();
 	void GetIP();
 	char* UTF8ToMultiByte(char* msg);
 	char* MultiByteToUTF8(char* msg);
+
+private:
+	void LoginDataSend(const char* szID, USERINFO& userInfo, bool bState);
+	void SignupDataSend(USERINFO& userInfo, bool bState);
+	void DuplicateDataSend(USERINFO& userInfo, bool bState, DuType eType);
 
 public:
 	void Render();

@@ -7,6 +7,9 @@ CMyClient::CMyClient(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 	m_pDeviceContext->AddRef();
 	memset(m_szName, 0, sizeof(m_szName));
 	memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
+	memset(m_szSignupID, 0, sizeof(m_szSignupID));
+	memset(m_szSignupPassword, 0, sizeof(m_szSignupPassword));
+	memset(m_szSignupNickName, 0, sizeof(m_szSignupNickName));
 	m_sock = 0;
 	m_bConnectEnable = false;
 }
@@ -38,9 +41,8 @@ HRESULT CMyClient::ConnectServer()
 		return E_FAIL;
 	}
 
-	//send(m_sock, szName, (int)strlen(szName) + 1, 0);
-
 	m_bConnectEnable = true;
+	m_bLogin = true;
 
 	m_thread = thread(&CMyClient::ThreadRecv, this, nullptr);
 
@@ -89,7 +91,11 @@ void CMyClient::Render()
 	{
 		// 서버에 접속 중이라면 버튼 비활성화
 		ImGui::BeginDisabled(m_bConnectEnable);
-		JoinServer();
+		if (ImGui::Button(u8"서버 접속", ImVec2(150.f, 50.f)))
+		{
+			if (!m_bConnectEnable)
+				JoinServer();
+		}
 		ImGui::EndDisabled();
 
 		ImGui::SameLine();
@@ -103,12 +109,18 @@ void CMyClient::Render()
 	ImGui::End();
 
 	// Client GUI Render
-	if (m_bConnectEnable)
+	if (m_bLogin)
 		LoginWindow();
+
+	if (m_bSignup)
+		SignupProgress();
 
 	// 로그인 성공했을 경우 채팅 접속
 	if (m_bChatting)
 		ShowChat();
+
+	if (!m_bConnectEnable)
+		Disconnect();
 
 	ImGui::Render();
 
@@ -139,27 +151,7 @@ void CMyClient::ShowChat()
 		{
 			if (strcmp("", m_szInputBuf))
 			{
-				BYTE* pBuf = new BYTE[sizeof(PACKET)];
-				memset(pBuf, 0, sizeof(PACKET));
-				int len = 0;
-
-				MsgType* pType = (MsgType*)pBuf;
-				*pType = MsgType::CHATTING;
-				len += sizeof(MsgType);
-
-				PACKETHEADER* pHeader = (PACKETHEADER*)(pBuf + len);
-				pHeader->iNameLen = (int)strlen(m_szName) + 1;
-				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
-				len += sizeof(PACKETHEADER);
-
-				char* pMsg = (char*)(pBuf + len);
-				memcpy(pMsg, m_szName, pHeader->iNameLen);
-				pMsg += pHeader->iNameLen;
-				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
-				len += pHeader->iNameLen + pHeader->iMsgLen;
-
-				send(m_sock, (char*)pBuf, len, 0);
-				delete[] pBuf;
+				SendMsg(m_szInputBuf);
 				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
 			}
 		}
@@ -170,27 +162,7 @@ void CMyClient::ShowChat()
 		{
 			if (strcmp("", m_szInputBuf))
 			{
-				BYTE* pBuf = new BYTE[sizeof(PACKET)];
-				memset(pBuf, 0, sizeof(PACKET));
-				int len = 0;
-
-				MsgType* pType = (MsgType*)pBuf;
-				*pType = MsgType::CHATTING;
-				len += sizeof(MsgType);
-
-				PACKETHEADER* pHeader = (PACKETHEADER*)(pBuf + len);
-				pHeader->iNameLen = (int)strlen(m_szName) + 1;
-				pHeader->iMsgLen = (int)strlen(m_szInputBuf) + 1;
-				len += sizeof(PACKETHEADER);
-
-				char* pMsg = (char*)(pBuf + len);
-				memcpy(pMsg, m_szName, pHeader->iNameLen);
-				pMsg += pHeader->iNameLen;
-				memcpy(pMsg, m_szInputBuf, pHeader->iMsgLen);
-				len += pHeader->iNameLen + pHeader->iMsgLen;
-
-				send(m_sock, (char*)pBuf, len, 0);
-				delete[] pBuf;
+				SendMsg(m_szInputBuf);
 				memset(m_szInputBuf, 0, sizeof(m_szInputBuf));
 			}
 		}
@@ -219,7 +191,7 @@ void CMyClient::ThreadRecv(void* pData)
 
 	while (0 < recv(m_sock, msg, len, 0))
 	{
-		// 받은 패킷정보로 로그인인지, 메세진지에 따라 분기로 나눠서 처리
+		// MsgType에 맞춰서 로직 진행
 		char* pBuf = msg;
 		MsgType* pType = (MsgType*)pBuf;
 		pBuf += sizeof(MsgType);
@@ -240,9 +212,31 @@ void CMyClient::ThreadRecv(void* pData)
 			memcpy(pInfo->szBuf, pBuf + iNameLen, iMsgLen);
 			m_vecInfo.push_back(pInfo);
 		}
+		else if (MsgType::SIGNUP == *pType)
+		{
+			LOGIN_HEADER_TO_CLIENT* pHeader = (LOGIN_HEADER_TO_CLIENT*)pBuf;
+			if (pHeader->bSuccess)
+				cout << "가입 성공!\n";
+			else
+				cout << "가입 실패!\n";
+		}
 		else
 		{
-			// 회원가입처리
+			DUPLICATE_HEADER* pHeader = (DUPLICATE_HEADER*)pBuf;
+			if (pHeader->bSuccess)
+			{
+				if (DuType::ID == pHeader->eType)
+					m_bIDCheck = true;
+				else
+					m_bNickCheck = true;
+			}
+			else
+			{
+				if (DuType::ID == pHeader->eType)
+					m_bIDCheck = false;
+				else
+					m_bNickCheck = false;
+			}
 		}
 
 		memset(msg, 0, len);
@@ -292,38 +286,8 @@ void CMyClient::ConnectFail()
 
 void CMyClient::JoinServer()
 {
-	if (ImGui::Button(u8"서버 접속", ImVec2(150.f, 50.f)))
-	{
-		if (E_FAIL == ConnectServer())
-			m_bConnectFail = true;
-		//ImGui::OpenPopup("NickName");
-	}
-
-	//ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-	//ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	//if (ImGui::BeginPopupModal("NickName", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-	//{
-	//	TextCenter(u8"닉네임을 설정해주세요!");
-	//	if (ImGui::InputText("##", m_szName, IM_ARRAYSIZE(m_szName), ImGuiInputTextFlags_EnterReturnsTrue))
-	//		m_bCheck = true;
-
-	//	WindowCenter(u8"확인##1");
-	//	if (ImGui::Button(u8"확인##1", ImVec2(50.f, 25.f)) || m_bCheck)
-	//	{
-	//		// Connect Server
-	//		if (S_OK == ConnectServer())
-	//		{
-	//			ImGui::CloseCurrentPopup();
-	//		}
-	//		else
-	//		{
-	//			ImGui::CloseCurrentPopup();
-	//			m_bConnectFail = true;
-	//		}
-	//		m_bCheck = false;
-	//	}
-	//	ImGui::EndPopup();
-	//}
+	if (E_FAIL == ConnectServer())
+		m_bConnectFail = true;
 
 	// Connect Server Failed
 	if (m_bConnectFail)
@@ -345,14 +309,18 @@ void CMyClient::LoginWindow()
 		{
 			static char szID[256] = "";
 			static char szPW[256] = "";
+			ImGui::PushItemWidth(225.f);
 			ImGui::Text("아이디 : ");
 			ImGui::SameLine();
+			ImGui::SetCursorPosX(82.f);
 			ImGui::InputText("##1", szID, sizeof(szID));
-			ImGui::Text("비 번 : ");
+			ImGui::Text("비밀번호 : ");
 			ImGui::SameLine();
 			ImGui::InputText("##2", szPW, sizeof(szPW));
+			ImGui::PopItemWidth();
+			
 
-			if (ImGui::Button(u8"로그인", ImVec2(100, 50)))
+			if (ImGui::Button(u8"로그인", ImVec2(150.f, 50.f)))
 			{
 				BYTE* pBuf = new BYTE[sizeof(PACKET)];
 				memset(pBuf, 0, sizeof(PACKET));
@@ -375,32 +343,125 @@ void CMyClient::LoginWindow()
 				len += pLogin->iIDLen + pLogin->iPasswordLen;
 
 				if (SOCKET_ERROR == send(m_sock, (char*)pBuf, len, 0))
-				{
 					cout << "SEND FAILED\n";
-				}
 
 				delete[] pBuf;
 				memset(szID, 0, sizeof(szID));
 				memset(szPW, 0, sizeof(szPW));
 			}
+
 			ImGui::SameLine();
-			if (ImGui::Button(u8"취소", ImVec2(100, 50)))
-			{
-				Disconnect();
 
-				memset(szID, 0, sizeof(szID));
-				memset(szPW, 0, sizeof(szPW));
-			}
-
-			if (ImGui::Button(u8"회원가입", ImVec2(100, 50)))
-			{
-
-			}
+			if (ImGui::Button(u8"회원가입", ImVec2(150.f, 50.f)))
+				m_bSignup = true;
 
 			ImGui::EndChild();
 		}
 	}
 	ImGui::End();
+}
+
+void CMyClient::SignupProgress()
+{
+	ImGui::OpenPopup("Signup");
+
+	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+	ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+	if (ImGui::BeginPopupModal("Signup", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::Text(u8"아이디 : ");
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(90.f);
+		ImGui::PushItemWidth(150.f);
+		ImGui::InputText("##ID", m_szSignupID, IM_ARRAYSIZE(m_szSignupID));
+		ImGui::PopItemWidth();
+		ImGui::SameLine();
+		if (ImGui::Button(u8"중복확인##1", ImVec2(80.f, 25.f)) && strcmp(m_szSignupID, ""))
+		{
+			if (!DuplicateCheck(m_szSignupID, DuType::ID))
+				cout << "아이디 중복체크 전송실패!\n";
+		}
+		ImGui::SameLine();
+		ImVec4 vIDColor = ImVec4(1.f, 0.f, 0.f, 1.f);
+		if(m_bIDCheck)
+			vIDColor = ImVec4(0.f, 1.f, 0.f, 1.f);
+		ImGui::PushStyleColor(ImGuiCol_Button, vIDColor);
+		ImGui::Button("##IDColor", ImVec2(25.f, 25.f));
+		ImGui::PopStyleColor();
+
+
+		ImGui::Text(u8"비밀번호 : ");
+		ImGui::SameLine();
+		ImGui::PushItemWidth(150.f);
+		ImGui::InputText("##PASS", m_szSignupPassword, IM_ARRAYSIZE(m_szSignupPassword));
+
+		ImGui::Text(u8"닉네임 : ");
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(90.f);
+		ImGui::InputText("##NICK", m_szSignupNickName, IM_ARRAYSIZE(m_szSignupNickName));
+		ImGui::PopItemWidth();
+		ImGui::SameLine();
+		if (ImGui::Button(u8"중복확인##3", ImVec2(80.f, 25.f)) && strcmp(m_szSignupNickName, ""))
+		{
+			if (!DuplicateCheck(m_szSignupNickName, DuType::NICKNAME))
+				cout << "닉네임 중복체크 전송실패!\n";
+		}
+		ImGui::SameLine();
+		ImVec4 vNickColor = ImVec4(1.f, 0.f, 0.f, 1.f);
+		if (m_bNickCheck)
+			vNickColor = ImVec4(0.f, 1.f, 0.f, 1.f);
+		ImGui::PushStyleColor(ImGuiCol_Button, vNickColor);
+		ImGui::Button("##NickColor", ImVec2(25.f, 25.f));
+		ImGui::PopStyleColor();
+
+
+		WindowCenter(u8"생성##1");
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 55.f);
+		if (ImGui::Button(u8"생성##1", ImVec2(80.f, 25.f)) && m_bIDCheck && m_bNickCheck)
+		{
+			if (SignupRequest(m_szSignupID, m_szSignupPassword, m_szSignupNickName))
+				cout << "아이디 가입요청 전송실패!\n";
+
+			m_bSignup = false;
+			ImGui::CloseCurrentPopup();
+		}
+		
+		ImGui::SameLine();
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 15.f);
+		if (ImGui::Button(u8"취소##1", ImVec2(80.f, 25.f)))
+		{
+			m_bSignup = false;
+			ImGui::CloseCurrentPopup();
+		}
+
+		ImGui::EndPopup();
+	}
+}
+
+void CMyClient::SendMsg(const char* szStr)
+{
+	BYTE* pBuf = new BYTE[sizeof(PACKET)];
+	memset(pBuf, 0, sizeof(PACKET));
+	int len = 0;
+
+	MsgType* pType = (MsgType*)pBuf;
+	*pType = MsgType::CHATTING;
+	len += sizeof(MsgType);
+
+	PACKETHEADER* pHeader = (PACKETHEADER*)(pBuf + len);
+	pHeader->iNameLen = (int)strlen(m_szName) + 1;
+	pHeader->iMsgLen = (int)strlen(szStr) + 1;
+	len += sizeof(PACKETHEADER);
+
+	char* pMsg = (char*)(pBuf + len);
+	memcpy(pMsg, m_szName, pHeader->iNameLen);
+	pMsg += pHeader->iNameLen;
+	memcpy(pMsg, szStr, pHeader->iMsgLen);
+	len += pHeader->iNameLen + pHeader->iMsgLen;
+
+	send(m_sock, (char*)pBuf, len, 0);
+	delete[] pBuf;
 }
 
 void CMyClient::LoginProgress(char* pBuffer)
@@ -414,19 +475,80 @@ void CMyClient::LoginProgress(char* pBuffer)
 		pBuf += sizeof(LOGIN_HEADER_TO_CLIENT);
 		memcpy(m_szName, pBuf, iNickNameLen);
 		m_bChatting = true;
-		m_bConnectEnable = false;
+		m_bLogin = false;
 	}
 	else
 	{
 		// 로그인 실패
-		Disconnect();
+		cout << "LOGIN FAILED!!!\n";
 	}
+}
+
+bool CMyClient::SignupRequest(const char* szID, const char* szPass, const char* szNick)
+{
+	BYTE* pBuf = new BYTE[sizeof(PACKET)];
+	memset(pBuf, 0, sizeof(PACKET));
+	int len = 0;
+
+	MsgType* pType = (MsgType*)pBuf;
+	*pType = MsgType::SIGNUP;
+	len += sizeof(MsgType);
+
+	SIGNUP_HEADER* pHeader = (SIGNUP_HEADER*)(pBuf + len);
+	pHeader->iIDLen = (int)strlen(szID) + 1;
+	pHeader->iPasswordLen = (int)strlen(szPass) + 1;
+	pHeader->iNickNameLen = (int)strlen(szNick) + 1;
+	len += sizeof(SIGNUP_HEADER);
+
+	char* pMsg = (char*)(pBuf + len);
+	memcpy(pMsg, szID, pHeader->iIDLen);
+	pMsg += pHeader->iIDLen;
+	memcpy(pMsg, szPass, pHeader->iPasswordLen);
+	pMsg += pHeader->iPasswordLen;
+	memcpy(pMsg, szNick, pHeader->iNickNameLen);
+	len += pHeader->iIDLen + pHeader->iPasswordLen + pHeader->iNickNameLen;
+
+	if (SOCKET_ERROR == send(m_sock, (char*)pBuf, len, 0))
+	{
+		delete[] pBuf;
+		return false;
+	}
+
+	delete[] pBuf;
+	return true;
+}
+
+bool CMyClient::DuplicateCheck(const char* str, DuType eType)
+{
+	BYTE* pBuf = new BYTE[sizeof(PACKET)];
+	memset(pBuf, 0, sizeof(PACKET));
+	int len = 0;
+
+	MsgType* pType = (MsgType*)pBuf;
+	*pType = MsgType::DUPLICATECHECK;
+	len += sizeof(MsgType);
+
+	DUPLICATE_HEADER* pHeader = (DUPLICATE_HEADER*)(pBuf + len);
+	pHeader->eType = eType;
+	pHeader->iNickNameLen = (int)strlen(str) + 1;
+	len += sizeof(DUPLICATE_HEADER);
+
+	char* pMsg = (char*)(pBuf + len);
+	memcpy(pMsg, str, pHeader->iNickNameLen);
+	len += pHeader->iNickNameLen;
+
+	if (SOCKET_ERROR == send(m_sock, (char*)pBuf, len, 0))
+	{
+		delete[] pBuf;
+		return false;
+	}
+
+	delete[] pBuf;
+	return true;
 }
 
 void CMyClient::Disconnect()
 {
-	m_bConnectEnable = false;
-
 	shutdown(m_sock, SD_BOTH);
 	closesocket(m_sock);
 	if (m_thread.joinable())
