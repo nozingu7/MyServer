@@ -1,3 +1,2 @@
 # MyServer
-IOCP 채팅 프로젝트
-MySQL 연동
+IOCP 채팅 프로젝트와 MySQL 연동
