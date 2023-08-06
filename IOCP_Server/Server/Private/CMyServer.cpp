@@ -86,7 +86,7 @@ void CMyServer::ThreadWork(void* pData)
 							cout << "아이디 생성 실패!\n";
 
 						SignupDataSend(*userInfo, bSuccess);
-#pragma endregion
+						#pragma endregion
 					}
 					else
 					{
@@ -113,7 +113,7 @@ void CMyServer::ThreadWork(void* pData)
 							cout << "중복 있음!\n";
 
 						DuplicateDataSend(*userInfo, bSuccess, eType);
-#pragma endregion
+						#pragma endregion
 					}
 
 					memset(userInfo->szRecvBuf, 0, sizeof(userInfo->szRecvBuf));

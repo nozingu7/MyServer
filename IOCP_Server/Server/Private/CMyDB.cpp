@@ -130,10 +130,13 @@ bool CMyDB::DBDubplicateCheck(const char* szStr, int iType)
 		cout << "DB Connection Failed\n";
 	}
 
+	// ID 중복확인
 	if(0 == iType)
 		sprintf(queryStatement, "select id from idtable where id = \'%s\'", szStr);
+	// 닉네임 중복확인
 	else
 		sprintf(queryStatement, "select name from infotable where name = \'%s\'", szStr);
+
 	query_reslut = mysql_query(connection, queryStatement);
 
 	if (0 != query_reslut)
