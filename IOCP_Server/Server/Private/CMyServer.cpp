@@ -59,9 +59,9 @@ void CMyServer::ThreadWork(void* pData)
 
 						// 로그인 정보 확인
 						if (m_pDB->LoginDataCheck(szID, szPassword))
-							LoginDataSend(szID, *userInfo, true);
+							LoginDataSend(szID, userInfo, true);
 						else
-							LoginDataSend(szID, *userInfo, false);
+							LoginDataSend(szID, userInfo, false);
 						#pragma endregion
 					}
 					else if (MsgType::CHATTING == *pType)
@@ -170,10 +170,6 @@ void CMyServer::ThreadAccept(void* pData)
 		userInfo = SetUpUserData(clientSock, clientAddr);
 		if (nullptr == userInfo)
 			continue;
-
-		EnterCriticalSection(&m_cs);
-		m_vecClient.push_back(userInfo);
-		LeaveCriticalSection(&m_cs);
 
 		CreateIoCompletionPort((HANDLE)clientSock, m_iocp, (ULONG_PTR)userInfo, 0);
 
@@ -399,8 +395,6 @@ bool CMyServer::SendAll(USERINFO& userInfo, int iSize)
 	DWORD dwByte = 0;
 	DWORD dwFlag = 0;
 
-	auto iter = m_vecClient.begin();
-
 	EnterCriticalSection(&m_cs);
 	for (int i = 0; i < (int)m_vecClient.size(); ++i)
 	{
@@ -540,7 +534,7 @@ char* CMyServer::MultiByteToUTF8(char* msg)
 	return strUtf8;
 }
 
-void CMyServer::LoginDataSend(const char* szID, USERINFO& userInfo, bool bState)
+void CMyServer::LoginDataSend(const char* szID, USERINFO* userInfo, bool bState)
 {
 	BYTE* pLoginBuf = new BYTE[sizeof(PACKET)];
 	memset(pLoginBuf, 0, sizeof(PACKET));
@@ -565,26 +559,20 @@ void CMyServer::LoginDataSend(const char* szID, USERINFO& userInfo, bool bState)
 		len += pHeaderToClient->iNickNameLen;
 
 		EnterCriticalSection(&m_cs);
-		for (int i = 0; i < (int)m_vecClient.size(); ++i)
-		{
-			if (userInfo.sock == m_vecClient[i]->sock)
-			{
-				strcpy(userInfo.szName, szNickName);
-				break;
-			}
-		}
+		strcpy(userInfo->szName, szNickName);
+		m_vecClient.push_back(userInfo);
 		LeaveCriticalSection(&m_cs);
 	}
 
-	userInfo.SendOverlap.wsaBuf.buf = (char*)pLoginBuf;
-	userInfo.SendOverlap.wsaBuf.len = len;
-	userInfo.SendOverlap.state = SEND;
+	userInfo->SendOverlap.wsaBuf.buf = (char*)pLoginBuf;
+	userInfo->SendOverlap.wsaBuf.len = len;
+	userInfo->SendOverlap.state = SEND;
 
 	DWORD dwByte = 0;
 	DWORD dwFlag = 0;
 
-	if (WSASend(userInfo.sock, &userInfo.SendOverlap.wsaBuf, 1,
-		&dwByte, dwFlag, &userInfo.SendOverlap.overlap, NULL))
+	if (WSASend(userInfo->sock, &userInfo->SendOverlap.wsaBuf, 1,
+		&dwByte, dwFlag, &userInfo->SendOverlap.overlap, NULL))
 	{
 		if (WSA_IO_PENDING != WSAGetLastError())
 			cout << "SEND PENDING FAILED\n";

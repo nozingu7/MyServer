@@ -26,7 +26,7 @@ public:
 	char* MultiByteToUTF8(char* msg);
 
 private:
-	void LoginDataSend(const char* szID, USERINFO& userInfo, bool bState);
+	void LoginDataSend(const char* szID, USERINFO* userInfo, bool bState);
 	void SignupDataSend(USERINFO& userInfo, bool bState);
 	void DuplicateDataSend(USERINFO& userInfo, bool bState, DuType eType);
 
